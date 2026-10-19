@@ -1,0 +1,2023 @@
+{
+  "year": 2026,
+  "title": "Reinforcement Learning — 2026 Assignments",
+  "source": "2026 assignment solutions 1–12, Reinforcement Learning (Prof. B. Ravindran)",
+  "weeks": [
+    {
+      "week": 1,
+      "title": "Bandits: Exploration & Optimality",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 1,
+          "id": "2026-w01q01",
+          "question": "Which of the following is **not** a useful way to approach a standard multi-armed bandit problem with $n$ arms? Assume bandits are stationary.",
+          "options": {
+            "A": "“How can I ensure the best action is the one which is mostly selected as time tends to infinity?”",
+            "B": "“How can I ensure the total regret as time tends to infinity is minimal?”",
+            "C": "“How can I ensure an arm which has an expected reward within a certain threshold of the optimal arm is chosen with a probability above a certain threshold?”",
+            "D": "“How can I ensure that when given any 2 arms, I can select the arm with a higher expected return with a probability above a certain threshold?”"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "Options (a), (b) and (c) describe asymptotic correctness, regret optimality and PAC optimality respectively. Being able to compare **any** two arms isn't necessary: if two arms both have low expected returns compared to the optimal arm, sampling them more to tell them apart wastes pulls."
+        },
+        {
+          "year": 2026,
+          "week": 1,
+          "id": "2026-w01q02",
+          "question": "What is the decay rate of the weightage given to past rewards in the computation of the Q function in the stationary and non-stationary updates of the multi-armed bandit problem, respectively?",
+          "options": {
+            "A": "hyperbolic, linear",
+            "B": "linear, hyperbolic",
+            "C": "hyperbolic, exponential",
+            "D": "exponential, linear"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "Stationary (sample average): every reward gets weight $\\frac{1}{n}$, where $n$ is the number of rewards for that arm, which is hyperbolic. Non-stationary (constant $\\alpha$): the latest reward gets $\\alpha$, the one before $\\alpha(1-\\alpha)$, and a reward from $t$ steps ago gets $\\alpha(1-\\alpha)^t$, which is exponential."
+        },
+        {
+          "year": 2026,
+          "week": 1,
+          "id": "2026-w01q03",
+          "question": "In the update rule $Q_{t+1}(a) \\leftarrow Q_t(a) + \\alpha(R_t - Q_t(a))$, which value of $\\alpha$ would we prefer for estimating Q values in a **non-stationary** bandit problem?",
+          "options": {
+            "A": "$\\alpha = \\frac{1}{n_a+1}$",
+            "B": "$\\alpha = 0.1$",
+            "C": "$\\alpha = n_a + 1$",
+            "D": "$\\alpha = \\frac{1}{(n_a+1)^2}$"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "A constant $\\alpha$ decays the importance of past samples exponentially, so estimates can follow changing action values.\n\n(a) computes a simple average: after many steps new samples barely move the estimate. (c) increases the weight of new samples without bound, so estimates diverge. (d) weights new samples even less than (a), so it adapts even more slowly."
+        },
+        {
+          "year": 2026,
+          "week": 1,
+          "id": "2026-w01q04",
+          "question": "**Assertion:** Taking exploratory actions is important for RL agents.\n\n**Reason:** If the rewards obtained for actions are stochastic, an action which gave a high reward once might give a lower reward next time.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "Both are true. But even with **deterministic** rewards an agent must explore to discover better actions, so stochasticity isn't the explanation for why exploration matters."
+        },
+        {
+          "year": 2026,
+          "week": 1,
+          "id": "2026-w01q05",
+          "question": "We plot expected payoff vs. time (starting from 0) for several bandit algorithms. Which payoff curve gives the **least regret**? The optimal expected payoff is 1. (Hint: plot the functions.)",
+          "options": {
+            "A": "$\\tanh(t)$",
+            "B": "$1 - 2^{-t}$",
+            "C": "$t/20$ if $t < 20$ and 1 after that",
+            "D": "Same regret for all the above functions"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Regret is the area between $y = 1$ and the curve: $\\int_0^\\infty (1 - f(t))\\,dt$. That's $\\ln 2 \\approx 0.69$ for $\\tanh$, $1/\\ln 2 \\approx 1.44$ for $1-2^{-t}$, and $10$ for the ramp."
+        },
+        {
+          "year": 2026,
+          "week": 1,
+          "id": "2026-w01q06",
+          "question": "Consider the following statements for the $\\epsilon$-greedy approach:\n\n- (i) Keeping a small constant $\\epsilon$ is a good approach if the environment is non-stationary.\n- (ii) Large values of $\\epsilon$ will lead to unnecessary exploration in the long run.\n- (iii) For a stationary environment, decaying $\\epsilon$ to zero is a good approach, as after reaching optimality we would like to reduce exploration.\n\nWhich of the above statements is/are correct?",
+          "options": {
+            "A": "ii, iii",
+            "B": "only iii",
+            "C": "only ii",
+            "D": "i, ii"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "In a non-stationary environment the optimal action keeps changing, so constant exploration is needed (i is true), and a large $\\epsilon$ wastes pulls in the long run (ii is true). Decaying $\\epsilon$ to zero may stop exploring before the optimal arm is found, so iii is marked incorrect."
+        },
+        {
+          "year": 2026,
+          "week": 1,
+          "id": "2026-w01q07",
+          "question": "Two ways of defining the probability of selecting arm $a$:\n\n(i) $\\Pr(a_t = a) = \\dfrac{Q_t(a)}{\\sum_b Q_t(b)}$\n\n(ii) $\\Pr(a_t = a) = \\dfrac{e^{Q_t(a)}}{\\sum_{b=1}^{n} e^{Q_t(b)}}$\n\nSelect the correct option regarding the better choice.",
+          "options": {
+            "A": "Both are good as both formulas can bound probability in range 0 to 1.",
+            "B": "(i) is better because it is differentiable and requires less complex computation.",
+            "C": "None of the above"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "(i) breaks when some Q values are negative (it can give negative or greater-than-one “probabilities”), so (a) and (b) are both wrong. Softmax (ii) always produces valid probabilities."
+        },
+        {
+          "year": 2026,
+          "week": 1,
+          "id": "2026-w01q08",
+          "question": "Which of the following best describes the PAC-optimality solution to bandit problems?\n\n- $\\epsilon$: the difference between the reward of the chosen arm and the true optimal reward\n- $\\delta$: the probability that the chosen arm is not optimal\n- $N$: the number of steps to reach PAC-optimality",
+          "options": {
+            "A": "Given $\\delta$ and $\\epsilon$, minimise the number of steps to reach PAC-optimality (i.e. $N$)",
+            "B": "Given $\\delta$ and $N$, minimise $\\epsilon$",
+            "C": "Given $\\epsilon$ and $N$, maximise the probability of choosing the optimal arm (i.e. minimise $\\delta$)",
+            "D": "None of the above is true about PAC-optimality"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "PAC optimality fixes the tolerance $\\epsilon$ and confidence $\\delta$, and asks for the smallest number of samples needed to return an $\\epsilon$-optimal arm with probability at least $1-\\delta$."
+        },
+        {
+          "year": 2026,
+          "week": 1,
+          "id": "2026-w01q09",
+          "question": "A 10-armed bandit has deterministic rewards in the range (0, 10). Which method will accumulate the maximum reward in the long term?",
+          "options": {
+            "A": "$\\epsilon$-greedy with $\\epsilon = 0.1$",
+            "B": "$\\epsilon$-greedy with $\\epsilon = 0.01$",
+            "C": "greedy with initial reward estimates set to 0",
+            "D": "greedy with initial reward estimates set to 10"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "With deterministic rewards each arm only needs one pull. Optimistic initial estimates above every possible reward force greedy to try each arm once (a tried arm's estimate drops below the untried ones). Then greedy settles on the best arm with no wasted exploration."
+        },
+        {
+          "year": 2026,
+          "week": 1,
+          "id": "2026-w01q10",
+          "question": "Which of the following are correct and valid reasons to sample actions from a softmax distribution instead of using $\\epsilon$-greedy?\n\n- (i) Softmax makes the probability of picking an action proportional to the action-value estimates, so it avoids wasting time exploring obviously “bad” actions.\n- (ii) We don't need to decay exploration slowly as with $\\epsilon$-greedy; softmax gives asymptotic correctness even for a sharp decrease in temperature.\n- (iii) It helps us differentiate between actions whose Q values are very close to the maximum Q value.",
+          "options": {
+            "A": "i, ii, iii",
+            "B": "only iii",
+            "C": "only i",
+            "D": "i, ii",
+            "E": "i, iii"
+          },
+          "correct_answer": [
+            "E"
+          ],
+          "type": "single",
+          "explanation": "(ii) is false: lowering the temperature too fast cuts exploration short, just like decaying $\\epsilon$ too fast. (i) and (iii) are true: softmax concentrates exploration on actions whose estimates are close to the best, which sharpens the estimates that matter."
+        }
+      ]
+    },
+    {
+      "week": 2,
+      "title": "UCB, PAC & Thompson Sampling",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 2,
+          "id": "2026-w02q01",
+          "question": "Which of the following statements is **NOT** true about Thompson Sampling (Posterior Sampling)?",
+          "options": {
+            "A": "After each sample is drawn, the $q_*$ distribution for that sampled arm is updated to be closer to the true distribution.",
+            "B": "Thompson sampling has been shown to generally give better regret bounds than UCB.",
+            "C": "In Thompson sampling, we do not need to eliminate arms each round to get good sample complexity.",
+            "D": "The algorithm requires that we use Gaussian priors to represent distributions over $q_*$ values for each arm."
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "We are not restricted to Gaussian priors; any prior over each arm's $q_*$ can be used (e.g. Beta priors for Bernoulli rewards)."
+        },
+        {
+          "year": 2026,
+          "week": 2,
+          "id": "2026-w02q02",
+          "question": "In UCB, the term $\\sqrt{\\frac{2\\ln n}{n_j}}$ is added to each arm's Q value and the arm with the highest sum is chosen. What would **definitely** happen to the frequency of picking sub-optimal arms if we used $\\sqrt{\\frac{2\\ln n}{n_j^2}}$ instead?",
+          "options": {
+            "A": "Sub-optimal arms would be chosen more frequently.",
+            "B": "Sub-optimal arms would be chosen less frequently.",
+            "C": "Makes no change to the frequency of picking sub-optimal arms.",
+            "D": "Sub-optimal arms could be chosen less or more frequently, depending on the samples."
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "The new bonus shrinks much faster as arms are pulled. If a few samples already give good estimates, less time is wasted on sub-optimal arms. But with noisy rewards, few samples mean poor estimates, and a small bonus gives those poor estimates more weight, so sub-optimal arms might be chosen more often. Either can happen depending on the problem."
+        },
+        {
+          "year": 2026,
+          "week": 2,
+          "id": "2026-w02q03",
+          "question": "In the proof of the UCB theorem, when $l = \\lceil 8\\ln m / \\Delta_i^2 \\rceil$, we have $q_*(a^*) - q_*(i) - 2C_{m,l} = 0$. Which option correctly explains why $q_*(a^*) - q_*(i) - 2C_{m,T_i(s_i)} < 0$ when the fixed $l$ is replaced by $T_i(s_i)$, the number of times arm $i$ is selected?\n\nNote: $C_{m,l} = \\sqrt{2\\ln(m)/l}$ and $q_*(a^*) - q_*(i) = \\Delta_i$.",
+          "options": {
+            "A": "$T_i(s_i) < l$ thus $C_{m,T_i(s_i)} < C_{m,l}$",
+            "B": "$T_i(s_i) > m$ thus $C_{m,T_i(s_i)} < C_{m,l}$",
+            "C": "$T_i(s_i) > l$ thus $C_{m,T_i(s_i)} < C_{m,l}$",
+            "D": "$T_i(s_i) < l$ thus $C_{m,T_i(s_i)} > C_{m,l}$"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "Fewer pulls than $l$ means a wider confidence interval: $C_{m,T_i(s_i)} > C_{m,l}$, so $\\Delta_i - 2C_{m,T_i(s_i)} < \\Delta_i - 2C_{m,l} = 0$."
+        },
+        {
+          "year": 2026,
+          "week": 2,
+          "id": "2026-w02q04",
+          "question": "Which of the following is true about the Median Elimination algorithm?",
+          "options": {
+            "A": "It is a regret minimizing algorithm.",
+            "B": "The probability of the $\\epsilon_l$-optimal arms of round $l$ being eliminated is less than $\\delta_l$ for the round.",
+            "C": "It is guaranteed to provide an $\\epsilon$-optimal arm at the end.",
+            "D": "Replacing $\\epsilon$ with $\\frac{\\epsilon}{2}$ doubles the sample complexity."
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "This is the per-round guarantee in the Median Elimination derivation. (a) It is a PAC algorithm, not regret minimising. (c) The guarantee only holds with probability $1-\\delta$. (d) Sample complexity scales with $1/\\epsilon^2$, so halving $\\epsilon$ quadruples it."
+        },
+        {
+          "year": 2026,
+          "week": 2,
+          "id": "2026-w02q05",
+          "question": "We need 8 rounds of median elimination to get an $(\\epsilon,\\delta)$-PAC arm. Approximately how many samples would the naive $(\\epsilon,\\delta)$-PAC algorithm need, given $(\\epsilon,\\delta) = (1/2,\\ 1/e)$? (Choose the closest value.)",
+          "options": {
+            "A": "15000",
+            "B": "10000",
+            "C": "500",
+            "D": "20000"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Rounds $= \\log_2 k = 8$, so $k = 256$ arms. The naive algorithm needs $\\frac{2k}{\\epsilon^2}\\ln\\frac{2k}{\\delta} = 2048 \\ln(512e) = 2048(\\ln 512 + 1) \\approx 14824$ samples."
+        },
+        {
+          "year": 2026,
+          "week": 2,
+          "id": "2026-w02q06",
+          "question": "For UCB the regret is generally of the form $f(n) + c$. For the confidence bound $\\sqrt{\\frac{2\\ln n}{n_j}}$, $f(n) = \\sum_{j=1}^{k}\\frac{8\\ln n}{\\Delta_j}$ and $c = \\left(1 + \\frac{\\pi^2}{3}\\right)\\sum_{j=1}^{k}\\Delta_j$. What is the form of $f(n)$ for the confidence bound $\\sqrt{\\frac{\\alpha\\ln n}{n_j}}$ with $\\alpha \\ge 2$?",
+          "options": {
+            "A": "$\\sum_{j=1}^{k}\\frac{4\\alpha\\ln n}{\\Delta_j}$",
+            "B": "$\\sum_{j=1}^{k}\\frac{2\\alpha^2\\ln n}{\\Delta_j}$",
+            "C": "$\\sum_{j=1}^{k}\\frac{\\alpha^3\\ln n}{\\Delta_j}$",
+            "D": "$\\sum_{j=1}^{k}\\frac{\\alpha^4\\ln n}{2\\Delta_j}$"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Re-deriving the proof with general $\\alpha$: the threshold becomes $l = \\lceil 4\\alpha\\ln n/\\Delta_j^2\\rceil$ (which gives $8\\ln n/\\Delta_j^2$ at $\\alpha = 2$), leading to $f(n) = \\sum_j 4\\alpha\\ln n/\\Delta_j$."
+        },
+        {
+          "year": 2026,
+          "week": 2,
+          "id": "2026-w02q07",
+          "question": "In the naive $(\\epsilon,\\delta)$-PAC algorithm, suppose we draw $\\frac{2}{\\epsilon^2}\\ln\\left(\\frac{k}{\\delta}\\right)$ samples per arm instead of $\\frac{2}{\\epsilon^2}\\ln\\left(\\frac{2k}{\\delta}\\right)$. Using the lecture analysis, with what probability can we guarantee that the returned arm $a'$ has $q_*(a')$ within $\\epsilon$ of the optimal arm's $q_*$?",
+          "options": {
+            "A": "$1 - \\delta$",
+            "B": "$1 - 4\\delta$",
+            "C": "$1 - 2\\delta$",
+            "D": "$1 - \\frac{\\delta}{2}$"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "For an arm $a'$ at least $\\epsilon$ worse than $a^*$: $P(Q(a') \\ge Q(a^*)) \\le P(Q(a') \\ge q_*(a') + \\epsilon/2) + P(Q(a^*) < q_*(a^*) - \\epsilon/2) \\le 2e^{-\\epsilon^2 l/2}$. With the new $l$ this is $\\le 2\\delta/k$. Summing over $k$ arms bounds the failure probability by $2\\delta$, so success is at least $1 - 2\\delta$."
+        },
+        {
+          "year": 2026,
+          "week": 2,
+          "id": "2026-w02q08",
+          "question": "In median elimination for $(\\epsilon,\\delta)$-PAC bounds, which is a plausible update rule for $\\epsilon_l$ and $\\delta_l$ if $\\epsilon_1 = \\frac{\\epsilon}{3}$ and $\\delta_1 = \\frac{\\delta}{4}$?",
+          "options": {
+            "A": "$\\epsilon_{l+1} = \\frac{3\\epsilon_l}{4}$ and $\\delta_{l+1} = \\frac{4\\delta_l}{5}$",
+            "B": "$\\epsilon_{l+1} = \\frac{3\\epsilon_l}{4}$ and $\\delta_{l+1} = \\frac{3\\delta_l}{4}$",
+            "C": "$\\epsilon_{l+1} = \\frac{2\\epsilon_l}{3}$ and $\\delta_{l+1} = \\frac{3\\delta_l}{4}$",
+            "D": "$\\epsilon_{l+1} = \\frac{2\\epsilon_l}{3}$ and $\\delta_{l+1} = \\frac{4\\delta_l}{5}$"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "We need $\\sum_l \\epsilon_l \\le \\epsilon$ and $\\sum_l \\delta_l \\le \\delta$. With ratio $\\frac23$: $\\frac{\\epsilon}{3}\\cdot\\frac{1}{1-2/3} = \\epsilon$. With ratio $\\frac34$: $\\frac{\\delta}{4}\\cdot\\frac{1}{1-3/4} = \\delta$. Larger ratios (e.g. $\\frac34$ for $\\epsilon$, $\\frac45$ for $\\delta$) overshoot."
+        },
+        {
+          "year": 2026,
+          "week": 2,
+          "id": "2026-w02q09",
+          "question": "We face a non-stationary bandit problem and want to use posterior sampling. What change is likely needed so the algorithm can adapt to non-stationarity?",
+          "options": {
+            "A": "Update the posterior rarely.",
+            "B": "Randomly shift the posterior drastically from time to time.",
+            "C": "Keep adding a slight noise to the posterior to prevent its variance from going down quickly.",
+            "D": "No change is required."
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "We must stop the posterior from collapsing (so it can keep tracking change) while still letting it learn from current samples."
+        },
+        {
+          "year": 2026,
+          "week": 2,
+          "id": "2026-w02q10",
+          "question": "In median elimination for $(\\epsilon,\\delta)$-PAC bounds, we claim that for every phase $l$, $\\Pr[A \\le B + \\epsilon_l] > 1 - \\delta_l$, where $S_l$ is the set of arms remaining in phase $l$. Consider:\n\n- (i) $A$ is the maximum of rewards of the true best arm in $S_l$\n- (ii) $B$ is the maximum of rewards of the true best arm in $S_{l+1}$\n- (iii) $B$ is the minimum of rewards of the true best arm in $S_{l+1}$\n- (iv) $A$ is the minimum of rewards of the true best arm in $S_l$\n- (v) $A$ is the maximum of rewards of the true best arm in $S_{l+1}$\n- (vi) $B$ is the maximum of rewards of the true best arm in $S_l$\n\nWhich statements are correct?",
+          "options": {
+            "A": "i and ii",
+            "B": "iii and iv",
+            "C": "iii and iv",
+            "D": "v and vi",
+            "E": "i and iii"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Lemma 1 of the Median Elimination proof: with probability above $1-\\delta_l$, the best arm surviving into $S_{l+1}$ is within $\\epsilon_l$ of the best arm in $S_l$. (Options (b) and (c) are identical in the original assignment.)"
+        }
+      ]
+    },
+    {
+      "week": 3,
+      "title": "Policy Gradient, Contextual Bandits & MDPs",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 3,
+          "id": "2026-w03q01",
+          "question": "Which of the following is true for an MDP?",
+          "options": {
+            "A": "$\\Pr(s_{t+1}, r_{t+1} \\mid s_t, a_t) = \\Pr(s_{t+1}, r_{t+1})$",
+            "B": "$\\Pr(s_{t+1}, r_{t+1} \\mid s_t, a_t, s_{t-1}, a_{t-1}, \\dots, s_0, a_0) = \\Pr(s_{t+1}, r_{t+1} \\mid s_t, a_t)$",
+            "C": "$\\Pr(s_{t+1}, r_{t+1} \\mid s_t, a_t) = \\Pr(s_{t+1}, r_{t+1} \\mid s_0, a_0)$",
+            "D": "$\\Pr(s_{t+1}, r_{t+1} \\mid s_t, a_t) = \\Pr(s_t, r_t \\mid s_{t-1}, a_{t-1})$"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "(b) is the Markov property: given the current state and action, the history adds no information. The others are not true in general."
+        },
+        {
+          "year": 2026,
+          "week": 3,
+          "id": "2026-w03q02",
+          "question": "The baseline in the REINFORCE update **should not** depend on which of the following (without voiding any step in the REINFORCE proof)?",
+          "options": {
+            "A": "$r_{n-1}$",
+            "B": "$r_n$",
+            "C": "Action taken ($a_n$)",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "The baseline must not depend on the action. It can depend on current and past rewards; the lectures use the average of rewards so far as a baseline."
+        },
+        {
+          "year": 2026,
+          "week": 3,
+          "id": "2026-w03q03",
+          "question": "Supervised learning methods like neural networks rely on gradient descent, but policy gradient for bandits uses gradient ascent. This discrepancy can mainly be attributed to differences in",
+          "options": {
+            "A": "the objectives of the learning tasks",
+            "B": "the parameters of the functions whose gradient are being calculated",
+            "C": "the nature of the feedback received by the algorithms"
+          },
+          "correct_answer": [
+            "A",
+            "C"
+          ],
+          "type": "multiple",
+          "explanation": "Supervised learning receives an error signal it wants to minimise (descent); policy gradient receives a reward signal it wants to maximise (ascent). This 2026 key accepts both the objective and the feedback as the cause."
+        },
+        {
+          "year": 2026,
+          "week": 3,
+          "id": "2026-w03q04",
+          "question": "In a linear bandit with two actions $a_1, a_2$, the policy in state $s$ is\n\n$\\pi(a_1 \\mid s) = \\frac{e^{w_1^\\top s}}{e^{w_1^\\top s} + e^{w_2^\\top s}}, \\quad \\pi(a_2 \\mid s) = \\frac{e^{w_2^\\top s}}{e^{w_1^\\top s} + e^{w_2^\\top s}}$\n\nUsing REINFORCE, what are the updates for $w_1$ and $w_2$ when we pull $a_1$?\n\n- (i) $w_1 \\to w_1 + \\alpha r\\left(s - \\frac{e^{w_1^\\top s}}{e^{w_1^\\top s} + e^{w_2^\\top s}}s\\right)$\n- (ii) $w_1 \\to w_1 + \\alpha r\\left(-\\frac{e^{w_1^\\top s}}{e^{w_1^\\top s} + e^{w_2^\\top s}}s\\right)$\n- (iii) $w_2 \\to w_2 + \\alpha r\\left(s - \\frac{e^{w_2^\\top s}}{e^{w_1^\\top s} + e^{w_2^\\top s}}s\\right)$\n- (iv) $w_2 \\to w_2 + \\alpha r\\left(-\\frac{e^{w_2^\\top s}}{e^{w_1^\\top s} + e^{w_2^\\top s}}s\\right)$",
+          "options": {
+            "A": "(i), (iii)",
+            "B": "(i), (iv)",
+            "C": "(ii), (iii)",
+            "D": "(ii), (iv)"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "$\\ln\\pi(a_1|s) = w_1^\\top s - \\ln(e^{w_1^\\top s} + e^{w_2^\\top s})$. So $\\nabla_{w_1} = s - \\pi(a_1|s)\\,s$ and $\\nabla_{w_2} = -\\pi(a_2|s)\\,s$. Multiply each by $\\alpha r$."
+        },
+        {
+          "year": 2026,
+          "week": 3,
+          "id": "2026-w03q05",
+          "question": "REINFORCE updates $\\theta_{t+1} = \\theta_t + \\alpha r_t \\frac{\\partial \\ln\\pi(a_t;\\theta_t)}{\\partial\\theta_t}$, an unbiased estimate of the true gradient. A variant subtracts a baseline $b$ that is independent of the action: $\\theta_{t+1} = \\theta_t + \\alpha(r_t - b)\\frac{\\partial \\ln\\pi(a_t;\\theta_t)}{\\partial\\theta_t}$. How are $E\\left[(r_t - b)\\frac{\\partial\\ln\\pi}{\\partial\\theta_t}\\right]$ and $E\\left[r_t\\frac{\\partial\\ln\\pi}{\\partial\\theta_t}\\right]$ related?",
+          "options": {
+            "A": "They are equal",
+            "B": "The first is less than the second",
+            "C": "The first is greater than the second",
+            "D": "Could be any of the above, depending on the choice of baseline"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "$E\\left[b\\,\\frac{\\partial\\ln\\pi(a_t;\\theta)}{\\partial\\theta}\\right] = \\sum_a \\pi(a;\\theta)\\,b\\,\\frac{1}{\\pi(a;\\theta)}\\frac{\\partial\\pi(a;\\theta)}{\\partial\\theta} = b\\,\\frac{\\partial}{\\partial\\theta}\\sum_a\\pi(a;\\theta) = b\\,\\frac{\\partial 1}{\\partial\\theta} = 0$. So the baseline doesn't change the expected update; it only affects variance."
+        },
+        {
+          "year": 2026,
+          "week": 3,
+          "id": "2026-w03q06",
+          "question": "Consider this policy-search algorithm for a multi-armed binary bandit: $\\forall a,\\ \\pi_{t+1}(a) = \\pi_t(a)(1-\\alpha) + \\alpha\\left(\\mathbb{1}_{a=a_t}r_t + (1 - \\mathbb{1}_{a=a_t})(1 - r_t)\\right)$, where $\\mathbb{1}_{a=a_t}$ is 1 if $a = a_t$ and 0 otherwise. Which is true?",
+          "options": {
+            "A": "It is the $L_{R-I}$ algorithm.",
+            "B": "It is the $L_{R-\\epsilon P}$ algorithm.",
+            "C": "It would work well if the best arm had probability 0.9 of resulting in +1 reward and the next best arm had probability 0.5.",
+            "D": "It would work well if the best arm had probability 0.3 of resulting in +1 reward and the worst arm had probability 0.25."
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "This is the $L_{R-P}$ (reward-penalty) scheme: rewards and penalties get equal weight. That works well when the best arm is clearly better than the rest (0.9 vs 0.5), not when arms are close (0.3 vs 0.25)."
+        },
+        {
+          "year": 2026,
+          "week": 3,
+          "id": "2026-w03q07",
+          "question": "The actions in contextual bandits do not determine the next state, but typically do in full RL problems. True or false?",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "In contextual bandits, the next context arrives independently of the action taken; in full RL, actions affect future states."
+        },
+        {
+          "year": 2026,
+          "week": 3,
+          "id": "2026-w03q08",
+          "question": "In a continuous action space environment, we can employ any value-function-based algorithm to discover an optimal policy.",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "With continuous actions you can't store a value per action, and acting greedily requires solving an optimisation over actions at every step. That is slow; policy gradient methods handle continuous actions more naturally."
+        },
+        {
+          "year": 2026,
+          "week": 3,
+          "id": "2026-w03q09",
+          "question": "We act according to a policy $\\pi$ in a full RL problem. At time $t$, in state $s$, we took action $a_1$. A few steps later, at time $t'$, we reached the same state $s$ and took action $a_2 \\neq a_1$. Which statement is true?",
+          "options": {
+            "A": "$\\pi$ is definitely a stationary policy",
+            "B": "$\\pi$ is definitely a non-stationary policy",
+            "C": "$\\pi$ can be stationary or non-stationary"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "A stationary policy can be stochastic, choosing different actions in the same state at different times. A non-stationary policy could do the same. So we can't tell."
+        },
+        {
+          "year": 2026,
+          "week": 3,
+          "id": "2026-w03q10",
+          "question": "In solving a multi-arm bandit problem using the policy gradient method, are we assured of converging to the optimal solution?",
+          "options": {
+            "A": "no",
+            "B": "yes"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Depending on the function whose gradient is being ascended, policy gradient may converge to a local optimum."
+        }
+      ]
+    },
+    {
+      "week": 4,
+      "title": "MDPs, Bellman Equations & Contractions",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 4,
+          "id": "2026-w04q01",
+          "question": "True or False: the state transition graph of any MDP is a directed acyclic graph.",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "An MDP can transition back to the same state, or around other cycles."
+        },
+        {
+          "year": 2026,
+          "week": 4,
+          "id": "2026-w04q02",
+          "question": "Consider the following statements:\n\n- (i) The optimal policy of an MDP is unique.\n- (ii) We can determine an optimal policy using only the optimal value function $v^*$, without accessing the MDP parameters.\n- (iii) We can determine an optimal policy using only the optimal q-value function $q^*$, without accessing the MDP parameters.\n\nWhich are true?",
+          "options": {
+            "A": "Only (ii)",
+            "B": "Only (iii)",
+            "C": "Only (i), (ii)",
+            "D": "Only (i), (iii)",
+            "E": "Only (ii), (iii)"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "Acting greedily w.r.t. $q^*$ gives an optimal policy directly. Using $v^*$ requires a one-step lookahead with the transition model. An MDP can have several optimal policies, so (i) is false."
+        },
+        {
+          "year": 2026,
+          "week": 4,
+          "id": "2026-w04q03",
+          "question": "Which of the following is a benefit of using RL algorithms for solving MDPs?",
+          "options": {
+            "A": "They do not require the state of the agent for solving an MDP.",
+            "B": "They do not require the action taken by the agent for solving an MDP.",
+            "C": "They do not require the state transition probability matrix for solving an MDP.",
+            "D": "They do not require the reward signal for solving an MDP."
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "RL algorithms need the state, the action taken and the reward signal, but learn from experience without knowing the transition probabilities."
+        },
+        {
+          "year": 2026,
+          "week": 4,
+          "id": "2026-w04q04",
+          "question": "Consider the following equations:\n\n- (i) $v^\\pi(s) = E_\\pi\\left[\\sum_{i=t}^{\\infty}\\gamma^{i-t}R_{i+1} \\mid S_t = s\\right]$\n- (ii) $q^\\pi(s,a) = \\sum_{s'} p(s' \\mid s,a)\\,v^\\pi(s')$\n- (iii) $v^\\pi(s) = \\sum_a \\pi(a \\mid s)\\,q^\\pi(s,a)$\n\nWhich are correct?",
+          "options": {
+            "A": "Only (i)",
+            "B": "Only (i), (ii)",
+            "C": "Only (ii), (iii)",
+            "D": "Only (i), (iii)",
+            "E": "(i), (ii), (iii)"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "(i) is the definition of $v^\\pi$, and (iii) follows from the definitions of $v^\\pi$ and $q^\\pi$. (ii) is missing the immediate reward and discount: $q^\\pi(s,a) = \\sum_{s'}p(s'|s,a)[r + \\gamma v^\\pi(s')]$."
+        },
+        {
+          "year": 2026,
+          "week": 4,
+          "id": "2026-w04q05",
+          "question": "True or False: when solving MDPs with discounted rewards, the value of $\\gamma$ (discount factor) cannot affect the optimal policy.",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "Changing $\\gamma$ changes how near and distant rewards trade off, so expected returns, and hence the optimal policy, can change."
+        },
+        {
+          "year": 2026,
+          "week": 4,
+          "id": "2026-w04q06",
+          "question": "Consider these statements for a finite MDP ($I$ is the $|S| \\times |S|$ identity matrix and $P_\\pi$ is a stochastic matrix):\n\n- (i) An MDP with stochastic rewards may not have a deterministic optimal policy.\n- (ii) There can be multiple optimal stochastic policies.\n- (iii) If $0 \\le \\gamma < 1$, the rank of $I - \\gamma P_\\pi$ equals $|S|$.\n- (iv) If $0 \\le \\gamma < 1$, the rank of $I - \\gamma P_\\pi$ is less than $|S|$.\n\nWhich are true?",
+          "options": {
+            "A": "Only (ii), (iii)",
+            "B": "Only (ii), (iv)",
+            "C": "Only (i), (iii)",
+            "D": "Only (i), (ii), (iii)"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "A finite MDP always has a deterministic optimal policy, so (i) is false. The lectures give an example of multiple optimal stochastic policies, so (ii) is true. The eigenvalues of $\\gamma P_\\pi$ have magnitude at most $\\gamma < 1$, so $I - \\gamma P_\\pi$ has no zero eigenvalue and has full rank $|S|$."
+        },
+        {
+          "year": 2026,
+          "week": 4,
+          "id": "2026-w04q07",
+          "question": "An MDP has 3 states A, B, C. From each state you can move to either of the other two. Rewards: $r(A,B) = 2$, $r(B,A) = 5$, $r(B,C) = 7$, $r(C,B) = 10$, $r(A,C) = 1$, $r(C,A) = 12$. The discount factor is 0.7. Find $[v^\\pi(A), v^\\pi(B), v^\\pi(C)]$ for the policy $\\pi(A) = C$, $\\pi(B) = A$, $\\pi(C) = B$.",
+          "options": {
+            "A": "[10.2, 16.7, 20.2]",
+            "B": "[14.2, 16.5, 15.1]",
+            "C": "[15.9, 16.1, 21.3]",
+            "D": "[12.2, 6.2, 14.5]"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "Compute $(I - \\gamma P_\\pi)^{-1} r_\\pi$ with $P_\\pi = \\begin{bmatrix}0&0&1\\\\1&0&0\\\\0&1&0\\end{bmatrix}$, $r_\\pi = [1, 5, 10]^\\top$, $\\gamma = 0.7$, or check which option satisfies the Bellman equation. E.g. $v(A) = 1 + 0.7 \\times 21.3 \\approx 15.9$."
+        },
+        {
+          "year": 2026,
+          "week": 4,
+          "id": "2026-w04q08",
+          "question": "Suppose $x$ is a fixed point of function $A$, $y$ is a fixed point of function $B$, and $x = BA(x)$, where $BA$ is the composition of $B$ and $A$. Consider:\n\n- (i) $x$ is a fixed point of $B$\n- (ii) $x = y$\n- (iii) $BA(y) = y$\n\nWhich must be true?",
+          "options": {
+            "A": "Only (i)",
+            "B": "Only (ii)",
+            "C": "Only (i), (ii)",
+            "D": "(i), (ii), (iii)"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "$x = B(A(x)) = B(x)$, so $x$ is a fixed point of $B$. But $B$ may have many fixed points (think of the identity), so $x = y$ need not hold. And $y$ need not be a fixed point of $A$, so (iii) isn't guaranteed."
+        },
+        {
+          "year": 2026,
+          "week": 4,
+          "id": "2026-w04q09",
+          "question": "Which of the following is **not** a valid norm function? ($x$ is a $D$-dimensional vector.)",
+          "options": {
+            "A": "$\\max_{d \\in \\{1,\\dots,D\\}} |x_d|$",
+            "B": "$\\sqrt{\\sum_{d=1}^{D} x_d^2}$",
+            "C": "$\\min_{d \\in \\{1,\\dots,D\\}} |x_d|$",
+            "D": "$\\sum_{d=1}^{D} |x_d|$"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "A norm must be zero only for the zero vector. The minimum absolute component can be zero for a nonzero vector, e.g. $[0, 5]$."
+        },
+        {
+          "year": 2026,
+          "week": 4,
+          "id": "2026-w04q10",
+          "question": "Which of the following is a contraction mapping in any norm?",
+          "options": {
+            "A": "$T([x_1, x_2]) = [0.5x_1,\\ 0.5x_2]$",
+            "B": "$T([x_1, x_2]) = [2x_1,\\ 2x_2]$",
+            "C": "$T([x_1, x_2]) = [2x_1,\\ 3x_2]$",
+            "D": "$T([x_1, x_2]) = [x_1 + x_2,\\ x_1 - x_2]$"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "$\\|Tu - Tv\\| = 0.5\\|u - v\\|$ for any norm, by homogeneity. The others expand distances."
+        }
+      ]
+    },
+    {
+      "week": 5,
+      "title": "Policy Iteration, GPI & Monte Carlo",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 5,
+          "id": "2026-w05q01",
+          "question": "In policy iteration, which of the following is/are true of the Policy Evaluation (PE) and Policy Improvement (PI) steps?",
+          "options": {
+            "A": "The values of states returned by PE may fluctuate between high and low values as the algorithm runs.",
+            "B": "PE returns the fixed point of $L_{\\pi_n}$.",
+            "C": "PI can randomly select any greedy policy for a given value function $v^n$.",
+            "D": "Policy iteration always converges for a finite MDP."
+          },
+          "correct_answer": [
+            "B",
+            "D"
+          ],
+          "type": "multiple",
+          "explanation": "Each PE step returns values at least as large as the previous iteration's, so they don't fluctuate (a is false). PE computes $v^{\\pi_n}$, the fixed point of $L_{\\pi_n}$ (b). Ties among greedy policies must be broken consistently to guarantee the stopping criterion is met (c is false). With finitely many deterministic policies and monotone improvement, policy iteration must converge (d)."
+        },
+        {
+          "year": 2026,
+          "week": 5,
+          "id": "2026-w05q02",
+          "question": "Consider Monte Carlo policy evaluation with states $S_1, \\dots, S_6$ and a terminal state. You sample one trajectory: $S_1 \\to S_5 \\to S_4 \\to S_6 \\to$ terminal. Which states can be updated from this sample?",
+          "options": {
+            "A": "$S_1$",
+            "B": "$S_2$",
+            "C": "$S_6$",
+            "D": "$S_4$"
+          },
+          "correct_answer": [
+            "A",
+            "C",
+            "D"
+          ],
+          "type": "multiple",
+          "explanation": "Every state that appears in the trajectory can be updated; $S_2$ never appears."
+        },
+        {
+          "year": 2026,
+          "week": 5,
+          "id": "2026-w05q03",
+          "question": "Which of the following are true with regard to Monte Carlo value approximation methods?",
+          "options": {
+            "A": "To evaluate a policy, a subset of trajectories in which all states are encountered at least once is enough to update all state values.",
+            "B": "Monte Carlo value function approximation methods need knowledge of the full model.",
+            "C": "Monte Carlo methods update state-value estimates only at the end of an episode.",
+            "D": "All of the above."
+          },
+          "correct_answer": [
+            "A",
+            "C"
+          ],
+          "type": "multiple",
+          "explanation": "All states in a trajectory are updated together, so covering every state at least once is enough to update them all (a). Returns are only known when the episode ends (c). MC only needs a way to sample trajectories, not a model, so (b) is false."
+        },
+        {
+          "year": 2026,
+          "week": 5,
+          "id": "2026-w05q04",
+          "question": "In every-visit Monte Carlo methods, multiple samples for one state are obtained from a single trajectory. Which of the following is true?",
+          "options": {
+            "A": "There is an increase in bias of the estimates.",
+            "B": "There is an increase in variance of the estimates.",
+            "C": "It does not affect the bias or variance of estimates.",
+            "D": "Both bias and variance of the estimates increase."
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "multiple",
+          "explanation": "Returns from the same trajectory share transitions, so some transitions are counted multiple times. That distorts the sample distribution and makes every-visit estimates biased."
+        },
+        {
+          "year": 2026,
+          "week": 5,
+          "id": "2026-w05q05",
+          "question": "Which of the following statements are **FALSE** about solving MDPs with dynamic programming?",
+          "options": {
+            "A": "If the state space is large or computation power is limited, it is preferred to update only some states, through random sampling or by selecting states seen in trajectories.",
+            "B": "Knowledge of transition probabilities is not necessary for solving MDPs using dynamic programming.",
+            "C": "Methods that update only a subset of states at a time guarantee performance equal to or better than classic DP.",
+            "D": "None of the above."
+          },
+          "correct_answer": [
+            "B",
+            "C"
+          ],
+          "type": "multiple",
+          "explanation": "(a) is a valid reason for asynchronous updates. (b) is false: DP needs the full model, including transition probabilities. (c) is false: there is no guarantee that partial updates match or beat classic DP."
+        },
+        {
+          "year": 2026,
+          "week": 5,
+          "id": "2026-w05q06",
+          "question": "Select the correct statements about Generalized Policy Iteration (GPI).",
+          "options": {
+            "A": "GPI lets policy evaluation and policy improvement interact with each other regardless of the details of the two processes.",
+            "B": "Before convergence, the policy evaluation step will usually cause the policy to no longer be greedy with respect to the updated value function.",
+            "C": "GPI converges only when a policy has been found which is greedy with respect to its own value function.",
+            "D": "The policy and value function found by GPI at convergence will both be optimal."
+          },
+          "correct_answer": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "type": "multiple",
+          "explanation": "All four are properties of GPI covered in the lectures: evaluation and improvement compete and cooperate, and the process stabilises only when the policy is greedy w.r.t. its own value function, which makes both optimal."
+        },
+        {
+          "year": 2026,
+          "week": 5,
+          "id": "2026-w05q07",
+          "question": "What is meant by “off-policy” Monte Carlo value function evaluation?",
+          "options": {
+            "A": "The policy being evaluated is the same as the policy used to generate samples.",
+            "B": "The policy being evaluated is different from the policy used to generate samples.",
+            "C": "The policy being learnt is different from the policy used to generate samples.",
+            "D": "The policy being learnt is different from the policy used to generate samples."
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "multiple",
+          "explanation": "MC evaluation *evaluates* a policy rather than learning one. Off-policy means the samples come from a different policy than the one being evaluated. (Options (c) and (d) are identical in the original assignment.)"
+        },
+        {
+          "year": 2026,
+          "week": 5,
+          "id": "2026-w05q08",
+          "question": "Value iteration produces a sequence of vectors $v_1, v_2, \\dots, v_n$ and policy iteration produces $v'_1, v'_2, \\dots, v'_n$. Which statements are true?",
+          "options": {
+            "A": "For every $v_i$ there exists a policy for which $v_i$ is a fixed point.",
+            "B": "For every $v'_i$ there exists a policy for which $v'_i$ is a fixed point.",
+            "C": "For some $v_i$ there may not exist a policy for which $v_i$ is a fixed point.",
+            "D": "For some $v'_i$ there may not exist a policy for which $v'_i$ is a fixed point."
+          },
+          "correct_answer": [
+            "B",
+            "C"
+          ],
+          "type": "multiple",
+          "explanation": "Each policy-iteration vector is the value function of the current policy. Intermediate value-iteration vectors needn't correspond to any policy's value function."
+        }
+      ]
+    },
+    {
+      "week": 6,
+      "title": "TD Learning, Q-learning, SARSA & UCT",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 6,
+          "id": "2026-w06q01",
+          "question": "**Assertion:** To use importance sampling for off-policy Monte Carlo policy evaluation, we require knowledge of the MDP's state transition probabilities.\n\n**Reason:** We require the probability of each trajectory $x_i$ under the estimation policy and under the behaviour policy, and both depend on the state transition probabilities.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "The importance weight is the *ratio* of the trajectory's probability under the two policies. Transition probabilities appear in both and cancel, so they aren't needed."
+        },
+        {
+          "year": 2026,
+          "week": 6,
+          "id": "2026-w06q02",
+          "question": "Which of the following are true?",
+          "options": {
+            "A": "Dynamic programming methods use full backups and bootstrapping.",
+            "B": "Temporal-Difference methods use sample backups and bootstrapping.",
+            "C": "Monte Carlo methods use sample backups and bootstrapping.",
+            "D": "Monte Carlo methods use full backups and no bootstrapping."
+          },
+          "correct_answer": [
+            "A",
+            "B"
+          ],
+          "type": "multiple",
+          "explanation": "DP: full (expected) backups with bootstrapping. TD: sample backups with bootstrapping. MC: sample backups without bootstrapping."
+        },
+        {
+          "year": 2026,
+          "week": 6,
+          "id": "2026-w06q03",
+          "question": "Which statement(s) is/are true for the UC-Trees (UCT) algorithm?",
+          "options": {
+            "A": "We typically require a simulation model for the environment.",
+            "B": "It uses $\\epsilon$-greedy exploration for action selection.",
+            "C": "It computes an upper confidence bound on the value of (state, action) pairs.",
+            "D": "It is a variation of the Monte Carlo tree search algorithm."
+          },
+          "correct_answer": [
+            "A",
+            "C",
+            "D"
+          ],
+          "type": "multiple",
+          "explanation": "UCT is MCTS with UCB-style action selection at tree nodes, using simulated rollouts from a model. It does not use $\\epsilon$-greedy."
+        },
+        {
+          "year": 2026,
+          "week": 6,
+          "id": "2026-w06q04",
+          "question": "Consider the following statements:\n\n- (i) TD(0) uses an unbiased sample of the return.\n- (ii) TD(0) uses a sample of the reward from the distribution of rewards.\n- (iii) TD(0) uses the current estimate of the value function.\n\nWhich is/are true?",
+          "options": {
+            "A": "(i), (ii)",
+            "B": "(i), (iii)",
+            "C": "(ii), (iii)",
+            "D": "(i), (ii), (iii)"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "The TD(0) target $R_{t+1} + \\gamma V(S_{t+1})$ uses a sampled reward and the current value estimate. Because it bootstraps from an estimate, it's a biased sample of the return."
+        },
+        {
+          "year": 2026,
+          "week": 6,
+          "id": "2026-w06q05",
+          "question": "**Assertion:** Q-learning can use asynchronous samples from different policies to update Q values.\n\n**Reason:** Q-learning is an off-policy learning algorithm.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true but Reason is false",
+            "D": "Assertion is false but Reason is true"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Q-learning's target uses the max over next actions, so the learned Q directly approximates the optimal action-value function independent of the policy that generated the data."
+        },
+        {
+          "year": 2026,
+          "week": 6,
+          "id": "2026-w06q06",
+          "question": "For a 2-player game modelled as an MDP, instead of learning a policy over the MDP directly, we separate the deterministic and stochastic results of an action to create “after-states”. Consider:\n\n- (i) The set of after-states may be different from the original set of states.\n- (ii) The set of after-states could be smaller than the original set of states.\n\nWhich is/are true?",
+          "options": {
+            "A": "Only (i)",
+            "B": "Only (ii)",
+            "C": "Both (i) and (ii)",
+            "D": "Neither (i) nor (ii)"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "In tic-tac-toe with the agent moving first, original states all have an even number of marks while after-states all have an odd number, so the sets differ. Several original state-action pairs can lead to the same after-state, so the after-state set can be smaller."
+        },
+        {
+          "year": 2026,
+          "week": 6,
+          "id": "2026-w06q07",
+          "question": "Consider CliffWorld (shown above). Using $\\epsilon$-greedy exploration with $\\epsilon = 0.1$, select the correct option(s).",
+          "options": {
+            "A": "Q-learning finds the optimal (red) path.",
+            "B": "Q-learning finds the safer (blue) path.",
+            "C": "SARSA finds the optimal (red) path.",
+            "D": "SARSA finds the safer (blue) path."
+          },
+          "correct_answer": [
+            "A",
+            "D"
+          ],
+          "type": "multiple",
+          "explanation": "Q-learning is off-policy and learns values of the greedy (optimal) policy, the edge path. SARSA is on-policy: it accounts for exploratory steps that occasionally fall off the cliff (−100), so it prefers the safer path.",
+          "images": [
+            "images/2026/w06q07_cliffworld.png"
+          ]
+        },
+        {
+          "year": 2026,
+          "week": 6,
+          "id": "2026-w06q08",
+          "question": "**Assertion:** Having a simulator/model is an advantage when using rollout-based methods.\n\n**Reason:** Multiple trajectories can be sampled from the model from any given state.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true but Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Without a simulator, every rollout from a state would have to be played out in the real environment, returning to that state each time. A model lets you simulate many trajectories from any state cheaply."
+        },
+        {
+          "year": 2026,
+          "week": 6,
+          "id": "2026-w06q09",
+          "question": "An MDP has two states A and B. Given the single trajectory **A, 3, B, 2, A, 5, B, 2, A, 4, END** (state, reward, next state, …), use on-policy TD(0) to estimate the values. Assume $\\gamma = 1$, $\\alpha = 1$ and initial values of zero. What are the estimates at the end of the trajectory? (You aren't asked for the true values.)",
+          "options": {
+            "A": "V(A) = 2, V(B) = 10",
+            "B": "V(A) = 8, V(B) = 7",
+            "C": "V(A) = 4, V(B) = 12",
+            "D": "V(A) = 12, V(B) = 7"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "With $\\gamma = \\alpha = 1$ the update becomes $V(s_t) \\leftarrow R_{t+1} + V(s_{t+1})$:\n\n1. V(A) = 3 + V(B) = 3\n2. V(B) = 2 + V(A) = 5\n3. V(A) = 5 + V(B) = 10\n4. V(B) = 2 + V(A) = 12\n5. V(A) = 4 + V(END) = 4\n\nFinal: V(A) = 4, V(B) = 12."
+        },
+        {
+          "year": 2026,
+          "week": 6,
+          "id": "2026-w06q10",
+          "question": "Which of the following statements are true for SARSA?",
+          "options": {
+            "A": "It uses bootstrapping to approximate the full return.",
+            "B": "It is an on-policy algorithm.",
+            "C": "It is a TD method.",
+            "D": "It always selects the greedy action."
+          },
+          "correct_answer": [
+            "A",
+            "B",
+            "C"
+          ],
+          "type": "multiple",
+          "explanation": "SARSA needs adequate exploration to converge to an optimal policy, so it doesn't always act greedily."
+        }
+      ]
+    },
+    {
+      "week": 7,
+      "title": "Eligibility Traces",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 7,
+          "id": "2026-w07q01",
+          "question": "Which of the following is the corrected n-step truncated return?",
+          "options": {
+            "A": "$R_{t+n} + \\gamma^n V_t(s_{t+n})$",
+            "B": "$R_{t+1} + \\gamma R_{t+2} + \\gamma^2 R_{t+3} + \\dots + \\gamma^{n-1}R_{t+n} + \\gamma^n V_t(s_{t+n})$",
+            "C": "$\\gamma R_{t+1} + \\gamma^2 R_{t+2} + \\gamma^3 R_{t+3} + \\dots + \\gamma^n R_{t+n} + V_t(s_{t+n})$",
+            "D": "None of the above."
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "This is the definition of $G_t^{(n)}$: $n$ discounted rewards, then the discounted bootstrap value of $s_{t+n}$."
+        },
+        {
+          "year": 2026,
+          "week": 7,
+          "id": "2026-w07q02",
+          "question": "Which of the following is the correct way to implement replacing traces?",
+          "options": {
+            "A": "$E_t(s) = 1$ if $s_t \\neq s$; $(\\gamma\\lambda)E_{t-1}(s)$ otherwise",
+            "B": "$E_t(s) = (\\gamma\\lambda)E_{t-1}(s) + 1$ if $s_t = s$; $(\\gamma\\lambda)E_{t-1}(s)$ otherwise",
+            "C": "$E_t(s) = (\\gamma\\lambda)E_{t-1}(s) + 1$ if $s_t \\neq s$; $(\\gamma\\lambda)E_{t-1}(s)$ otherwise",
+            "D": "$E_t(s) = 1$ if $s_t = s$; $(\\gamma\\lambda)E_{t-1}(s)$ otherwise"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "Replacing traces reset a visited state's trace to 1; option (b) describes accumulating traces."
+        },
+        {
+          "year": 2026,
+          "week": 7,
+          "id": "2026-w07q03",
+          "question": "**Assertion:** TD(1), a way of implementing Monte Carlo with eligibility traces, extends the Monte Carlo algorithm to continuing tasks.\n\n**Reason:** TD(1), implemented with eligibility traces, is an offline algorithm.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "TD($\\lambda$) with $\\lambda = 1$ targets the Monte Carlo return, and with eligibility traces it runs online, which is what extends MC to continuing tasks. So the Reason (offline) is false."
+        },
+        {
+          "year": 2026,
+          "week": 7,
+          "id": "2026-w07q04",
+          "question": "**Assertion:** It is NOT necessary for the behaviour policy of an off-policy method to have non-zero probability of selecting all actions.\n\n**Reason:** If the probability of certain actions in the estimation policy is zero, then the probability of selecting those actions in the behaviour policy can be zero, and it would not cause trouble in learning.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true but Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Actions with zero probability under both policies can simply be ignored, so the behaviour policy needn't cover them."
+        },
+        {
+          "year": 2026,
+          "week": 7,
+          "id": "2026-w07q05",
+          "question": "Considering episodic tasks and $\\lambda \\in (0, 1)$, the one-step return always gets the maximum weight in the $\\lambda$-return. True or false?",
+          "options": {
+            "A": "False",
+            "B": "True"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "It depends on episode length and $\\lambda$. E.g., episode length 3 and $\\lambda = 0.7$: the final (MC) return gets weight $\\lambda^2 = 0.49$, more than the one-step return's $1 - \\lambda = 0.3$."
+        },
+        {
+          "year": 2026,
+          "week": 7,
+          "id": "2026-w07q06",
+          "question": "**Assertion:** It is possible to use the forward-view eligibility-trace target for updates before the end of an episode.\\n\\n**Reason:** $G_t^\\lambda$ is a weighted average of terms $G_t^{(i)}$, each computable after a finite number of steps $i$, making $G_t^\\lambda$ also computable after a finite number of steps in all cases.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "The forward-view target $G_t^\\lambda$ needs all $n$-step returns, which aren't available until the episode ends. Each $G_t^{(i)}$ is computable after $i$ steps, but $i$ has no upper bound, so $G_t^\\lambda$ can't always be computed in finite time."
+        },
+        {
+          "year": 2026,
+          "week": 7,
+          "id": "2026-w07q07",
+          "question": "Which is a way to use replacing traces in SARSA($\\lambda$) such that we only update the estimate for the action $a$ taken in state $s$ at timestep $t$?",
+          "options": {
+            "A": "$E_t(s,a) = \\gamma\\lambda E_{t-1}(s,a) + 1$ if $s_t = s, a_t = a$; $(\\gamma\\lambda)E_{t-1}(s,a)$ otherwise",
+            "B": "$E_t(s,a) = 1$ if $s_t = s, a_t = a$; $(\\gamma\\lambda)E_{t-1}(s,a)$ otherwise",
+            "C": "$E_t(s,a) = \\gamma\\lambda E_{t-1}(s,a) + 1$ if $s_t = s, a_t = a$; $0$ if $s_t = s, a_t \\neq a$; $(\\gamma\\lambda)E_{t-1}(s,a)$ otherwise",
+            "D": "$E_t(s,a) = 1$ if $s_t = s, a_t = a$; $0$ if $s_t = s, a_t \\neq a$; $(\\gamma\\lambda)E_{t-1}(s,a)$ otherwise"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "This aggressive form of replacing traces sets the taken action's trace to 1 and clears the traces of the other actions in that state, so only the taken action is credited."
+        },
+        {
+          "year": 2026,
+          "week": 7,
+          "id": "2026-w07q08",
+          "question": "**Assertion:** When using $\\epsilon$-greedy exploration with Watkins's Q($\\lambda$), the $\\epsilon$ value must be kept low.\\n\\n**Reason:** Traces will become too short if a high value of $\\epsilon$ is used, negating many of the advantages of eligibility traces.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Watkins's Q($\\lambda$) cuts traces whenever an exploratory action is taken. A high $\\epsilon$ means frequent cuts and very short traces."
+        },
+        {
+          "year": 2026,
+          "week": 7,
+          "id": "2026-w07q09",
+          "question": "In state $s$ the action recommended by the policy, $a_1$, is taken. Possible reason(s) for setting $E_t(s,a) = 0$ for all $a \\neq a_1$:\n\n- (i) Rewards obtained by taking $a_1$ in $s$ should not be attributed to other actions taken in $s$ previously.\n- (ii) It is assumed that the time between visits to $s$ is long enough for the trace to decay to 0.\n\nWhich is/are correct?",
+          "options": {
+            "A": "Only (i)",
+            "B": "Only (ii)",
+            "C": "Both (i) and (ii)",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "The point is credit assignment: what happens after taking $a_1$ shouldn't be credited to other actions previously taken in $s$. No assumption about decay timing is involved."
+        },
+        {
+          "year": 2026,
+          "week": 7,
+          "id": "2026-w07q10",
+          "question": "In off-policy TD($\\lambda$), $\\pi$ is the policy whose Q-values we want to estimate, $\\mu$ is the behaviour policy and $\\rho_t = \\frac{\\pi(s_t, a_t)}{\\mu(s_t, a_t)}$. Which is a correct eligibility trace update?",
+          "options": {
+            "A": "$E_t(s) = \\rho_t\\gamma\\lambda E_{t-1}(s) + 1$ if $s_t = s$; $\\rho_t\\gamma\\lambda E_{t-1}(s)$ otherwise",
+            "B": "$E_t(s) = \\rho_t(\\gamma\\lambda E_{t-1}(s) + 1)$ if $s_t = s$; $\\rho_t\\gamma\\lambda E_{t-1}(s)$ otherwise",
+            "C": "$E_t(s) = \\gamma\\lambda E_{t-1}(s) + 1$ if $s_t = s$; $\\rho_t\\gamma\\lambda E_{t-1}(s)$ otherwise",
+            "D": "$E_t(s) = \\rho_t(\\gamma\\lambda E_{t-1}(s) + 1)$ if $s_t = s$; $\\gamma\\lambda E_{t-1}(s)$ otherwise"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "The importance ratio $\\rho_t$ must multiply the whole trace in both cases, including the new increment when $s_t = s$."
+        }
+      ]
+    },
+    {
+      "week": 8,
+      "title": "Function Approximation & LSTD",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 8,
+          "id": "2026-w08q01",
+          "question": "Each row of the training matrix $\\Phi$ holds the $k$ attributes of one sample. We want the linear function minimising mean squared error to stationary targets $y$ (linear regression). True or false: if the columns of $\\Phi$ are linearly independent, there exists a unique linear function minimising the MSE.",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Linearly independent columns make $\\Phi^\\top\\Phi$ invertible, so the closed-form solution $\\theta = (\\Phi^\\top\\Phi)^{-1}\\Phi^\\top y$ exists and is unique."
+        },
+        {
+          "year": 2026,
+          "week": 8,
+          "id": "2026-w08q02",
+          "question": "Which of the following statements are true?",
+          "options": {
+            "A": "Function approximation allows us to deal with continuous state spaces.",
+            "B": "A lookup table is a linear function approximator.",
+            "C": "State aggregates do not overlap in coarse coding.",
+            "D": "None of the above."
+          },
+          "correct_answer": [
+            "A",
+            "B"
+          ],
+          "type": "multiple",
+          "explanation": "A lookup table is a linear approximator with one-hot features. Coarse coding uses overlapping receptive fields, so (c) is false."
+        },
+        {
+          "year": 2026,
+          "week": 8,
+          "id": "2026-w08q03",
+          "question": "In which case would a function-approximator loss of $\\sum_{s \\in S}(\\hat V(s) - V(s))^2$ lead to poor performance? “Relevant” states are those visited frequently when executing near-optimal policies.",
+          "options": {
+            "A": "Large state space with a small percentage of relevant states.",
+            "B": "Small state space with a large percentage of relevant states.",
+            "C": "Large state space with a large percentage of relevant states.",
+            "D": "None of the above."
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "This loss weights all states equally. When only a few states are relevant, the approximator spends its capacity on irrelevant ones instead of the states that matter."
+        },
+        {
+          "year": 2026,
+          "week": 8,
+          "id": "2026-w08q04",
+          "question": "**Assertion:** It is not possible to use lookup-table-based methods to solve continuous state or action space problems (assume discretisation is not allowed).\n\n**Reason:** For continuous state or action spaces, there are an infinite number of states/actions.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "You can't keep a table entry for infinitely many states or actions without discretising."
+        },
+        {
+          "year": 2026,
+          "week": 8,
+          "id": "2026-w08q05",
+          "question": "**Assertion:** If we make incremental gradient-descent updates to a linear approximation $\\hat v$ under policy $\\pi$, minimising MSE between $\\hat v(s_t)$ and bootstrapped targets $R_t + \\gamma\\hat v(s_{t+1})$, we eventually converge to the same solution as if we had used the true $v_\\pi$ values as targets.\\n\\n**Reason:** Each update moves $\\hat v$ closer to $v_\\pi$, so eventually the bootstrapped targets converge to the true $v_\\pi(s_t)$. (Assume on-policy sampling.)",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "Bootstrapped targets are non-stationary, so convergence to the least-squares fit isn't guaranteed. With linearly independent features, the TD fixed point $\\hat v^*$ is within a bounded distance of the best fit $\\hat v^{opt}$, but generally not equal to it."
+        },
+        {
+          "year": 2026,
+          "week": 8,
+          "id": "2026-w08q06",
+          "question": "**Assertion:** To solve $\\pi_{t+1}(s) = \\arg\\max_a \\hat Q^{\\pi_t}(s,a)$ with a linear function approximator in a discrete action space, we need to formulate a classification problem.\\n\\n**Reason:** The problem is equivalent to $\\pi_{t+1}(s) = \\arg\\max_a \\Phi(s)^\\top\\hat\\Theta^{\\pi_t}(a)$; for a discrete action space we can't maximise it explicitly, so we need a classifier.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "With discrete actions we can evaluate the approximator for each action and pick the maximum; no classifier is needed."
+        },
+        {
+          "year": 2026,
+          "week": 8,
+          "id": "2026-w08q07",
+          "question": "Which of the following is/are true about the LSTD and LSTDQ algorithms?",
+          "options": {
+            "A": "Both are iterative algorithms, where the parameter estimates are updated using the gradient of the loss function.",
+            "B": "Both LSTD and LSTDQ can reuse samples.",
+            "C": "Both LSTD and LSTDQ are linear function approximation methods.",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "Both solve a linear system in closed form rather than doing gradient descent. LSTDQ can reuse samples across policies (only the $\\phi(s', \\pi(s'))$ term changes); LSTD can't, since its samples are tied to the evaluated policy."
+        },
+        {
+          "year": 2026,
+          "week": 8,
+          "id": "2026-w08q08",
+          "question": "**Assertion:** When minimising mean squared error to approximate state values under a given policy $\\pi$, it is important to draw samples on-policy.\\n\\n**Reason:** Sampling on-policy makes the training data approximately reflect the steady-state distribution of states under $\\pi$.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "On-policy sampling weights the error by how often states actually occur under $\\pi$, which is the distribution the MSE objective should use."
+        },
+        {
+          "year": 2026,
+          "week": 8,
+          "id": "2026-w08q09",
+          "question": "Tile coding is a method of state aggregation for grid-world problems. Consider:\n\n- (i) The number of indicators for each state equals the number of tilings.\n- (ii) Tile coding cannot be used in continuous state spaces.\n- (iii) Tile coding is a form of coarse coding.\n\nWhich are true?",
+          "options": {
+            "A": "(iii) only",
+            "B": "(i), (iii)",
+            "C": "(i) only",
+            "D": "(i), (ii), (iii)"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "Each tiling contributes exactly one active tile per state, so a state has as many active indicators as there are tilings. Tile coding is a form of coarse coding and works fine in continuous spaces."
+        },
+        {
+          "year": 2026,
+          "week": 8,
+          "id": "2026-w08q10",
+          "question": "Which is the correct value of $\\tilde A$ in LSTDQ? Samples are $D = \\{s_i, a_i, s'_i, r_i\\}$, $\\phi(s_i, a_i)$ is the representation of $(s_i, a_i)$, and $\\pi$ is the policy being followed.",
+          "options": {
+            "A": "$\\frac{1}{L}\\sum_{i=1}^{L}\\phi(s_i,a_i)\\left(\\phi(s_i,a_i) - \\gamma\\phi(s'_i,a_i)\\right)^\\top$",
+            "B": "$\\frac{1}{L}\\sum_{i=1}^{L}\\phi(s_i)\\left(\\phi(s_i) - \\gamma\\phi(s'_i)\\right)^\\top$",
+            "C": "$\\frac{1}{L}\\sum_{i=1}^{L}\\phi(s_i,a_i)\\left(\\phi(s_i,a_i) - \\gamma\\phi(s'_i)\\right)^\\top$",
+            "D": "$\\frac{1}{L}\\sum_{i=1}^{L}\\phi(s_i,a_i)\\left(\\phi(s_i,a_i) - \\gamma\\phi(s'_i,\\pi(s'_i))\\right)^\\top$"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "Features are over state-action pairs, and from $s'_i$ the policy would take $\\pi(s'_i)$, so the next feature is $\\phi(s'_i, \\pi(s'_i))$."
+        }
+      ]
+    },
+    {
+      "week": 9,
+      "title": "DQN & Policy Gradient Methods",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 9,
+          "id": "2026-w09q01",
+          "question": "True or False:\n\n**Statement 1:** DQN is an on-policy technique.\n\n**Statement 2:** Actor-Critic is a policy gradient method.",
+          "options": {
+            "A": "Both statements are True.",
+            "B": "Statement 1 is True and Statement 2 is False.",
+            "C": "Statement 1 is False and Statement 2 is True.",
+            "D": "Both statements are False."
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "DQN is built on Q-learning, which is off-policy. Actor-critic trains its actor using the policy gradient theorem."
+        },
+        {
+          "year": 2026,
+          "week": 9,
+          "id": "2026-w09q02",
+          "question": "What are the reasons for using an experience replay buffer in DQN?",
+          "options": {
+            "A": "Random sampling from the buffer breaks correlations among transitions.",
+            "B": "It leads to efficient usage of real-world samples.",
+            "C": "It guarantees convergence to the optimal policy.",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "A",
+            "B"
+          ],
+          "type": "multiple",
+          "explanation": "Random minibatches break the strong temporal correlations between consecutive transitions, and each stored transition can be used for several updates. There is no convergence guarantee."
+        },
+        {
+          "year": 2026,
+          "week": 9,
+          "id": "2026-w09q03",
+          "question": "**Assertion:** DQN is implemented with a current and a target network.\n\n**Reason:** Using a target network helps avoid chasing a non-stationary target.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "The target network is frozen for a number of steps, giving a stationary target and stabilising the updates."
+        },
+        {
+          "year": 2026,
+          "week": 9,
+          "id": "2026-w09q04",
+          "question": "Policy gradient methods can be used for continuous action spaces.",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Policy gradient methods parameterise the policy directly, e.g. as a Gaussian over actions, so continuous actions are natural."
+        },
+        {
+          "year": 2026,
+          "week": 9,
+          "id": "2026-w09q05",
+          "question": "**Assertion:** Actor-critic updates have lower variance than REINFORCE updates.\\n\\n**Reason:** Actor-critic methods use the TD target instead of $G_t$.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "$G_t$ sums rewards over the whole remaining trajectory, so it is high-variance. The TD target uses one reward plus a value estimate."
+        },
+        {
+          "year": 2026,
+          "week": 9,
+          "id": "2026-w09q06",
+          "question": "Choose the correct statement of the Policy Gradient Theorem for the average-reward formulation:",
+          "options": {
+            "A": "$\\frac{\\partial\\rho(\\pi)}{\\partial\\theta} = \\sum_s d^\\pi(s)\\sum_a\\frac{\\partial\\pi(s,a)}{\\partial\\theta}$",
+            "B": "$\\frac{\\partial\\rho(\\pi)}{\\partial\\theta} = \\sum_s v^\\pi(s)\\sum_a\\frac{\\partial\\pi(s,a)}{\\partial\\theta}q^\\pi(s,a)$",
+            "C": "$\\frac{\\partial\\rho(\\pi)}{\\partial\\theta} = \\sum_s d^\\pi(s)\\sum_a\\frac{\\partial\\pi(s,a)}{\\partial\\theta}q^\\pi(s,a)$",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "The gradient weights each state by its stationary distribution $d^\\pi(s)$ and each action-gradient by $q^\\pi(s,a)$."
+        },
+        {
+          "year": 2026,
+          "week": 9,
+          "id": "2026-w09q07",
+          "question": "Using a policy gradient method, the returned policy is not optimal. Which are plausible reasons?",
+          "options": {
+            "A": "The search procedure converged to a locally optimal policy.",
+            "B": "The search procedure was terminated before it could reach an optimal policy.",
+            "C": "An optimal policy could not be represented by the parameterisation used to represent the policy.",
+            "D": "None of these"
+          },
+          "correct_answer": [
+            "A",
+            "B",
+            "C"
+          ],
+          "type": "multiple",
+          "explanation": "All three are plausible: local optima, early stopping, and a policy class that can't express the optimum."
+        },
+        {
+          "year": 2026,
+          "week": 9,
+          "id": "2026-w09q08",
+          "question": "True or False: Monte Carlo policy gradient methods typically converge faster than actor-critic methods, given similar parameterisations and an approximation to $Q^\\pi$ in the actor-critic method that satisfies the compatibility criteria.",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "MC policy gradient suffers high variance from long episodes, which slows convergence. Actor-critic's value estimates reduce variance and speed it up."
+        },
+        {
+          "year": 2026,
+          "week": 9,
+          "id": "2026-w09q09",
+          "question": "With policy gradient methods, if we use the average-reward formulation instead of the discounted one, is it necessary to designate a start state $s_0$?",
+          "options": {
+            "A": "Yes",
+            "B": "No",
+            "C": "Can't say"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "A designated start state gives a single number to evaluate a policy by. Average reward provides that without one: $\\rho(\\pi) = \\lim_{N\\to\\infty}\\frac{1}{N}E[r_1 + \\dots + r_N \\mid \\pi]$."
+        },
+        {
+          "year": 2026,
+          "week": 9,
+          "id": "2026-w09q10",
+          "question": "True or False: exploration techniques like softmax (or equivalent) are not needed for DQN, because the randomisation from experience replay provides enough exploration.",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "Replay only reshuffles transitions the agent has already generated. If those come from greedy behaviour, much of the state space stays unexplored."
+        }
+      ]
+    },
+    {
+      "week": 10,
+      "title": "SMDPs, Options & HAMs",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 10,
+          "id": "2026-w10q01",
+          "question": "The SMDP Q-learning update is $Q(s,a) = Q(s,a) + \\alpha\\left[A + B\\max_{a'}Q(s',a') - Q(s,a)\\right]$. What are $A$ and $B$? ($r_k$ is the reward at step $k$ and $\\gamma$ the discount factor.)",
+          "options": {
+            "A": "$A = r_t;\\ B = \\gamma$",
+            "B": "$A = r_t + \\gamma r_{t+1} + \\dots + \\gamma^{\\tau-1}r_{t+\\tau};\\ B = \\gamma^\\tau$",
+            "C": "$A = \\gamma^t r_t + \\gamma^{t+1}r_{t+1} + \\dots + \\gamma^{t+\\tau-1}r_{t+\\tau};\\ B = \\gamma^{t+\\tau}$",
+            "D": "$A = \\gamma^{\\tau-1}r_{t+\\tau};\\ B = \\gamma^\\tau$"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "$A$ is the discounted reward accumulated over the $\\tau$ steps the action lasts; $B = \\gamma^\\tau$ discounts the value at the state reached after $\\tau$ steps."
+        },
+        {
+          "year": 2026,
+          "week": 10,
+          "id": "2026-w10q02",
+          "question": "Consider an SMDP where $P(s',\\tau \\mid s,a) = P(s' \\mid s,a)P(\\tau \\mid s,a)$ and $R(s,a,\\tau,s') = R(s,a,s')$. If we solve it with conventional Q-learning, will we get the same policy as with SMDP Q-learning?",
+          "options": {
+            "A": "yes, because now $\\tau$ won't change anything and we end up with the same state and action sequences",
+            "B": "no, because $\\tau$ still depends on the state-action pair and discounting may affect the final policy",
+            "C": "no, because the next state will still depend on $\\tau$",
+            "D": "yes, because the Bellman equation is the same for both methods in this case"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "The SMDP Bellman equation discounts by $\\gamma^\\tau$. Since $\\tau$ varies with $(s,a)$, this changes returns and therefore the policy."
+        },
+        {
+          "year": 2026,
+          "week": 10,
+          "id": "2026-w10q03",
+          "question": "In a HAM, what is the immediate reward received between two choice states?",
+          "options": {
+            "A": "The accumulation of the core MDP's immediate rewards obtained between these choice points.",
+            "B": "The return of the next choice state.",
+            "C": "The reward of only the next primitive action taken.",
+            "D": "Immediate reward is always zero"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Moving between choice states may involve many primitive actions; the reward is the accumulation of all their rewards."
+        },
+        {
+          "year": 2026,
+          "week": 10,
+          "id": "2026-w10q04",
+          "question": "Which of the following is true about Markov and Semi-Markov options?",
+          "options": {
+            "A": "In a Markov option, the option's policy depends only on the current state.",
+            "B": "In a Semi-Markov option, the option's policy can depend only on the current state.",
+            "C": "In a Semi-Markov option, the option's policy may depend on the history since the option began executing.",
+            "D": "A Semi-Markov option is always a Markov option but not vice versa."
+          },
+          "correct_answer": [
+            "A",
+            "B",
+            "C"
+          ],
+          "type": "multiple",
+          "explanation": "Semi-Markov options *may* use the history since the option started (and may also ignore it). So every Markov option is Semi-Markov, not the other way round, making (d) false."
+        },
+        {
+          "year": 2026,
+          "week": 10,
+          "id": "2026-w10q05",
+          "question": "Consider two statements about the SMDP for a HAM:\n\n**Statement 1:** The state of the SMDP is defined by the state of the base MDP, the call stack and the state of the machine currently executing.\n\n**Statement 2:** The actions of the SMDP can only be defined by the action states.",
+          "options": {
+            "A": "Statement 1 is True and Statement 2 is True.",
+            "B": "Statement 1 is True and Statement 2 is False.",
+            "C": "Statement 1 is False and Statement 2 is True.",
+            "D": "Statement 1 is False and Statement 2 is False."
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "The SMDP's actions are the transitions available from each choice state, not the action states."
+        },
+        {
+          "year": 2026,
+          "week": 10,
+          "id": "2026-w10q06",
+          "question": "Which are possible advantages of formulating a problem as a hierarchy of sub-problems?",
+          "options": {
+            "A": "A reduced state space.",
+            "B": "More meaningful state abstraction.",
+            "C": "Temporal abstraction of behaviour.",
+            "D": "Re-usability of learnt sub-problems."
+          },
+          "correct_answer": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "type": "multiple",
+          "explanation": "Sub-problems can use smaller state representations that keep only what they need (a, b), sub-tasks abstract away how long each part takes (c), and policies for repeated sub-problems can be reused (d)."
+        },
+        {
+          "year": 2026,
+          "week": 10,
+          "id": "2026-w10q07",
+          "question": "In an SMDP where $\\tau$ is fixed for all state-action pairs, will conventional Q-learning and SMDP Q-learning always give the same policy? Answer for $\\tau = 3$, $\\tau = 2$ and $\\tau = 1$, in that order.",
+          "options": {
+            "A": "yes, yes, no",
+            "B": "no, no, no",
+            "C": "yes, yes, yes",
+            "D": "no, no, yes"
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "single",
+          "explanation": "For $\\tau \\neq 1$ the effective discount per decision becomes $\\gamma^\\tau$ instead of $\\gamma$, which can change the policy. For $\\tau = 1$ they coincide."
+        },
+        {
+          "year": 2026,
+          "week": 10,
+          "id": "2026-w10q08",
+          "question": "True or False: in the classical options framework, each option has a non-zero probability of terminating in every state of the environment.",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "Each option assigns a termination probability to every state, but that probability can be zero for any number of states."
+        },
+        {
+          "year": 2026,
+          "week": 10,
+          "id": "2026-w10q09",
+          "question": "A robot in a room is modelled as an SMDP, with the robot's position as the state. Which scenarios satisfy $P(s',\\tau \\mid s,a) = P(s' \\mid s,a)P(\\tau \\mid s,a)$? (Primitive actions left, right, up, down take one time step.)",
+          "options": {
+            "A": "The room has a single door. Actions: {exit the room, move left, move right, move up, move down}.",
+            "B": "The room has two doors. Actions: {exit the room, move left, move right, move up, move down}.",
+            "C": "The room has two doors. Actions: {move left, move right, move up, move down}.",
+            "D": "None of the above."
+          },
+          "correct_answer": [
+            "A",
+            "C"
+          ],
+          "type": "multiple",
+          "explanation": "(a) With one door the exit time doesn't depend on which next state results. (b) With two doors, the time to exit depends on which door is used, i.e. on the next state. (c) Primitive actions always take one step, so the assumption holds trivially."
+        },
+        {
+          "year": 2026,
+          "week": 10,
+          "id": "2026-w10q10",
+          "question": "Which is a correct Bellman equation for an SMDP?",
+          "options": {
+            "A": "$V^*(s) = \\max_{a\\in A(s)}\\left[R(s,a,\\tau,s') + \\gamma^\\tau P(s'|s,a)V^*(s')\\right]$",
+            "B": "$V^*(s) = \\max_{a\\in A(s)}\\left[\\sum_{s',\\tau}P(s'|s,a,\\tau)\\left(R(s,a,\\tau,s') + \\gamma V^*(s')\\right)\\right]$",
+            "C": "$V^*(s) = \\max_{a\\in A(s)}\\left[\\sum_{s',\\tau}P(s',\\tau|s,a)\\left(R(s,a,\\tau,s') + \\gamma^\\tau V^*(s')\\right)\\right]$",
+            "D": "$V^*(s) = \\max_{a\\in A(s)}\\left[\\sum_{s',\\tau}P(s',\\tau|s,a)\\left(R(s,a,s') + \\gamma V^*(s')\\right)\\right]$"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "Sum over the joint distribution of next state and duration; the reward depends on $s, a, \\tau, s'$, and the next state's value is discounted by $\\gamma^\\tau$ because it's reached $\\tau$ steps later."
+        }
+      ]
+    },
+    {
+      "week": 11,
+      "title": "MAXQ & Option Discovery",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 11,
+          "id": "2026-w11q01",
+          "question": "Which option is correct for sub-task termination in the MAXQ framework?",
+          "options": {
+            "A": "The termination is stochastic",
+            "B": "The termination is deterministic"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "Each sub-task partitions the core MDP's states into active and terminal states; entering a terminal state ends the sub-task immediately and deterministically."
+        },
+        {
+          "year": 2026,
+          "week": 11,
+          "id": "2026-w11q02",
+          "question": "MAXQ uses a collection of SMDPs, with value functions of the form $V^\\pi(i, s)$ where $\\pi$ is the policy and $s$ the current state. What is $i$?",
+          "options": {
+            "A": "The number of times we have visited state $s$",
+            "B": "It means it is the $i^{th}$ iteration of updates",
+            "C": "$i$ is the identity of the sub-task/SMDP",
+            "D": "None of the above."
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "$V^\\pi(i, s)$ is the value of state $s$ within sub-task $i$, one of the SMDPs in the collection."
+        },
+        {
+          "year": 2026,
+          "week": 11,
+          "id": "2026-w11q03",
+          "question": "**Taxi world (questions 3–6).** Grey cells are inaccessible obstacles. Corner cells R, G, B, Y are the allowed pickup/drop-off points. The call graph for the problem is shown above.\n\nFrom the actions (i) Left, (ii) Drop off, (iii) Navigate, (iv) put-down, which are the primitive actions?",
+          "options": {
+            "A": "i, ii, iii, iv",
+            "B": "ii, iii",
+            "C": "i, iv",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "Primitive actions are the leaves of the call graph, the actions that exist in the MDP itself: Left and put-down. Drop off and Navigate are composite sub-tasks.",
+          "images": [
+            "images/2026/w11_taxi_grid.png",
+            "images/2026/w11_call_graph.png"
+          ]
+        },
+        {
+          "year": 2026,
+          "week": 11,
+          "id": "2026-w11q04",
+          "question": "**Taxi world (questions 3–6).** Grey cells are inaccessible obstacles. Corner cells R, G, B, Y are the allowed pickup/drop-off points. The call graph for the problem is shown above.\n\nNavigate is not a single sub-task. What is the parameter $t$ in Navigate($t$)?",
+          "options": {
+            "A": "the number of times Pick up or Drop off have called the Navigate sub-task",
+            "B": "the maximum number of primitive actions permitted to finish the sub-task",
+            "C": "the destination (in this case, one of R, G, B, Y)",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "Navigate($t$) is a parameterised family of sub-tasks, one per target location.",
+          "images": [
+            "images/2026/w11_taxi_grid.png",
+            "images/2026/w11_call_graph.png"
+          ]
+        },
+        {
+          "year": 2026,
+          "week": 11,
+          "id": "2026-w11q05",
+          "question": "**Taxi world (questions 3–6).** Grey cells are inaccessible obstacles. Corner cells R, G, B, Y are the allowed pickup/drop-off points. The call graph for the problem is shown above.\n\nTrue or False: the ordering of the call graph is important, and sub-tasks should be performed according to that ordering.",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "single",
+          "explanation": "The left-to-right ordering in the call graph is for pictorial convenience; it doesn't prescribe an execution order.",
+          "images": [
+            "images/2026/w11_taxi_grid.png",
+            "images/2026/w11_call_graph.png"
+          ]
+        },
+        {
+          "year": 2026,
+          "week": 11,
+          "id": "2026-w11q06",
+          "question": "**Taxi world (questions 3–6).** Grey cells are inaccessible obstacles. Corner cells R, G, B, Y are the allowed pickup/drop-off points. The call graph for the problem is shown above.\n\nThe passenger is always either in the taxi or at one of the four pickup/drop-off locations (5 possible passenger locations). How many states suffice to define all information for this taxi world?",
+          "options": {
+            "A": "18",
+            "B": "18 × 5",
+            "C": "18 × 5 × 4",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "single",
+          "explanation": "The taxi can be in 25 − 7 = 18 accessible cells, the passenger in 5 locations, and the destination is one of 4: 18 × 5 × 4.",
+          "images": [
+            "images/2026/w11_taxi_grid.png",
+            "images/2026/w11_call_graph.png"
+          ]
+        },
+        {
+          "year": 2026,
+          "week": 11,
+          "id": "2026-w11q07",
+          "question": "True or False: bottlenecks are useful surrogate measures for option discovery.",
+          "options": {
+            "A": "True",
+            "B": "False"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "States that many good trajectories pass through, like doorways, make natural sub-goals for options."
+        },
+        {
+          "year": 2026,
+          "week": 11,
+          "id": "2026-w11q08",
+          "question": "Which of the following can be considered a good option in hierarchical RL?",
+          "options": {
+            "A": "An option that can be reused often",
+            "B": "An option that can cut down exploration",
+            "C": "An option that helps in transfer learning",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "A",
+            "B",
+            "C"
+          ],
+          "type": "multiple",
+          "explanation": "Reusability, reduced exploration and transfer are all criteria for good options from the Option Discovery lecture."
+        },
+        {
+          "year": 2026,
+          "week": 11,
+          "id": "2026-w11q09",
+          "question": "The MAXQ action value is $q^\\pi(i,s,a) = v^\\pi(a,s) + C^\\pi(i,s,a)$: the expected return in sub-task $i$, state $s$, when performing sub-task $a$. Suppose that while executing $a$ you get reward $r_1$, and after $a$ completes you get reward $r_2$ in completing sub-task $i$. What is $C^\\pi(i,s,a)$?",
+          "options": {
+            "A": "$C^\\pi(i,s,a) = r_2$",
+            "B": "$C^\\pi(i,s,a) = r_1 + r_2$",
+            "C": "$C^\\pi(i,s,a) = r_1$",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "$r_1$ corresponds to $v^\\pi(a,s)$ and $q^\\pi(i,s,a) = r_1 + r_2$, so the completion function $C^\\pi(i,s,a) = r_2$."
+        },
+        {
+          "year": 2026,
+          "week": 11,
+          "id": "2026-w11q10",
+          "question": "In MAXQ, sub-task $M_i$ invokes sub-task $M_j$. Do the pseudo-rewards of $M_j$ have any effect on $M_i$?",
+          "options": {
+            "A": "Yes",
+            "B": "No"
+          },
+          "correct_answer": [
+            "A"
+          ],
+          "type": "single",
+          "explanation": "Pseudo-rewards aren't used directly when solving another sub-task, but they shape $M_j$'s learned policy, which $M_i$ depends on."
+        }
+      ]
+    },
+    {
+      "week": 12,
+      "title": "POMDPs",
+      "questions": [
+        {
+          "year": 2026,
+          "week": 12,
+          "id": "2026-w12q01",
+          "question": "An agent is dropped into state $s_1$ or $s_2$ with equal probability. It can only sense obstacles immediately to the North, South, East or West, and each direction's reading is wrong with probability 0.1. In $s_1$ obstacles are present to the North and South; in $s_2$, to the East and West. What is the probability the agent is in $s_1$ if it observes obstacles to the North and West?",
+          "options": {
+            "A": "81/82",
+            "B": "41/82",
+            "C": "73/82",
+            "D": "None of the above."
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "multiple",
+          "explanation": "Bayes' rule. If in $s_1$: N correct, S misread, E correct, W misread: $0.9 \\times 0.1 \\times 0.9 \\times 0.1 = 0.0081$. If in $s_2$: N misread, S correct, E misread, W correct: also $0.0081$. Equal likelihoods and equal priors give $\\frac12 = \\frac{41}{82}$."
+        },
+        {
+          "year": 2026,
+          "week": 12,
+          "id": "2026-w12q02",
+          "question": "Same environment as the previous question: $s_1$ has obstacles only to the North and South, $s_2$ only to the East and West. What is the probability the agent is in $s_1$ if it observes obstacles **only** to the North, East and West?",
+          "options": {
+            "A": "81/82",
+            "B": "41/82",
+            "C": "73/82",
+            "D": "None of the above."
+          },
+          "correct_answer": [
+            "D"
+          ],
+          "type": "multiple",
+          "explanation": "Likelihood in $s_1$: N correct, S misread, E misread, W misread $= 0.9 \\times 0.1^3 = 0.0009$. In $s_2$: N misread, S correct, E correct, W correct $= 0.1 \\times 0.9^3 = 0.0729$. Posterior $= \\frac{0.0009}{0.0009 + 0.0729} = \\frac{1}{82}$, which isn't listed."
+        },
+        {
+          "year": 2026,
+          "week": 12,
+          "id": "2026-w12q03",
+          "question": "**Assertion:** One reason history-based methods are not feasible is the significant increase in state-space size when the trajectory is long.\n\n**Reason:** The number of states increases polynomially with trajectory length.",
+          "options": {
+            "A": "Both Assertion and Reason are true, and Reason is a correct explanation of Assertion",
+            "B": "Both Assertion and Reason are true, but Reason is not a correct explanation of Assertion",
+            "C": "Assertion is true, Reason is false",
+            "D": "Both Assertion and Reason are false"
+          },
+          "correct_answer": [
+            "C"
+          ],
+          "type": "multiple",
+          "explanation": "The number of histories grows **exponentially** with trajectory length, not polynomially."
+        },
+        {
+          "year": 2026,
+          "week": 12,
+          "id": "2026-w12q04",
+          "question": "For POMDPs, which is a good estimate of the return of a trajectory under policy $\\pi$, given the current belief state and the solution of the underlying MDP (value function for all states)?",
+          "options": {
+            "A": "Average of all $V^\\pi(s)$ where $b(s) > 0$",
+            "B": "Weighted average of all $V^\\pi(s)$ with $b(s)$ as the weights",
+            "C": "Average of all $V^\\pi(s)$ where $b(s) \\ge \\alpha$, for a small positive $\\alpha$",
+            "D": "None of the above"
+          },
+          "correct_answer": [
+            "B"
+          ],
+          "type": "multiple",
+          "explanation": "$\\sum_s b(s)V^\\pi(s)$ is the expected return under the current belief."
+        },
+        {
+          "year": 2026,
+          "week": 12,
+          "id": "2026-w12q05",
+          "question": "Consider the grid world shown above. Walls and obstacles are grey. The agent's sensor detects walls or obstacles immediately to its North, South, East or West. If we represent states by their sensor observations, which are true?",
+          "options": {
+            "A": "The grid world is a 1st-order Markov system.",
+            "B": "The grid world is a 2nd-order Markov system.",
+            "C": "The grid world is a 3rd-order Markov system.",
+            "D": "The grid world is a 4th-order Markov system."
+          },
+          "correct_answer": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "type": "multiple",
+          "explanation": "Every free cell has a unique sensor reading, so observations identify states and the system is 1st-order Markov. Any 1st-order Markov system is also 2nd-, 3rd- and 4th-order Markov.",
+          "images": [
+            "images/2026/w12q05_gridworld.png"
+          ]
+        }
+      ]
+    }
+  ]
+}
