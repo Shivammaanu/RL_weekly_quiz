@@ -582,7 +582,7 @@ def main() -> None:
                      "Other years are not affected.")
             st.button(f"Yes, reset {year}", type="primary", on_click=reset_year, args=(year,))
 
-    st.title(f"Week {week}: {WEEKS[year][week]['title']}")
+    st.title(f"Week {week}: {WEEKS[year][week]['title']}", anchor=False)
     st.caption(BANKS[year].get("source", ""))
     tab_quiz, tab_dash = st.tabs(["📝 Quiz", "📊 Results dashboard"])
     with tab_quiz:
