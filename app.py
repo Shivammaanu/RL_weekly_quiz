@@ -7,7 +7,9 @@ Question banks: questions/<year>.json, one file per year (each year is kept sepa
 
 from __future__ import annotations
 
+import hashlib
 import json
+import random
 import time
 from datetime import datetime
 from pathlib import Path
@@ -86,6 +88,11 @@ def wkey(year: int, week: int) -> str:
     return f"{year}-{week}"
 
 
+def stable_seed(*args: object) -> int:
+    s = ":".join(str(a) for a in args)
+    return int(hashlib.md5(s.encode("utf-8")).hexdigest()[:8], 16)
+
+
 # --------------------------------------------------------------------------------------
 # Session state
 # --------------------------------------------------------------------------------------
@@ -99,6 +106,62 @@ def init_state() -> None:
     ss.setdefault("practice_logged", set())  # "year-week" keys already logged to history
     ss.setdefault("nonce", {})         # "year-week" -> int, bumped on reset so widgets start fresh
     ss.setdefault("flash", {})         # qid -> one-off message
+    ss.setdefault("shuffle_questions", True)  # default ON as requested
+    ss.setdefault("shuffle_options", True)    # default ON as requested
+    ss.setdefault("shuffle_seed", {})         # "year-week" -> int seed
+
+
+def ensure_shuffle_seed(year: int, week: int) -> int:
+    k = wkey(year, week)
+    if k not in st.session_state.shuffle_seed:
+        st.session_state.shuffle_seed[k] = random.randint(1, 1_000_000)
+    return st.session_state.shuffle_seed[k]
+
+
+def reshuffle_week(year: int, week: int) -> None:
+    k = wkey(year, week)
+    st.session_state.shuffle_seed[k] = random.randint(1, 1_000_000)
+    st.session_state.nonce[k] = st.session_state.nonce.get(k, 0) + 1
+
+
+def get_week_questions(year: int, week: int) -> list[dict]:
+    qs = WEEKS[year][week]["questions"]
+    if not st.session_state.get("shuffle_questions", True):
+        return list(qs)
+    seed = ensure_shuffle_seed(year, week)
+    rng = random.Random(seed)
+    shuffled = list(qs)
+    rng.shuffle(shuffled)
+    return shuffled
+
+
+def get_option_mapping(q: dict) -> tuple[dict[str, str], dict[str, str]]:
+    """Returns (new_to_orig, orig_to_new) letter mappings."""
+    orig_keys = list(q["options"].keys())
+    if not st.session_state.get("shuffle_options", True):
+        identity = {k: k for k in orig_keys}
+        return identity, identity
+    seed = ensure_shuffle_seed(q["year"], q["week"])
+    q_seed = stable_seed(seed, q["id"], "options")
+    rng = random.Random(q_seed)
+    shuffled_orig_keys = list(orig_keys)
+    rng.shuffle(shuffled_orig_keys)
+    new_to_orig = {orig_keys[i]: shuffled_orig_keys[i] for i in range(len(orig_keys))}
+    orig_to_new = {shuffled_orig_keys[i]: orig_keys[i] for i in range(len(orig_keys))}
+    return new_to_orig, orig_to_new
+
+
+def get_display_question(q: dict) -> dict:
+    new_to_orig, orig_to_new = get_option_mapping(q)
+    orig_keys = list(q["options"].keys())
+    disp_options = {new_k: q["options"][new_to_orig[new_k]] for new_k in orig_keys}
+    disp_correct = sorted([orig_to_new[k] for k in q["correct_answer"]])
+    disp_q = dict(q)
+    disp_q["options"] = disp_options
+    disp_q["correct_answer"] = disp_correct
+    disp_q["_new_to_orig"] = new_to_orig
+    disp_q["_orig_to_new"] = orig_to_new
+    return disp_q
 
 
 def exam_state(year: int, week: int) -> dict:
@@ -108,8 +171,11 @@ def exam_state(year: int, week: int) -> dict:
 
 
 def widget_key(mode: str, q: dict, letter: str | None = None) -> str:
-    n = st.session_state.nonce.get(wkey(q["year"], q["week"]), 0)
-    base = f"{mode}:{n}:{q['id']}"
+    k = wkey(q["year"], q["week"])
+    n = st.session_state.nonce.get(k, 0)
+    shuf_opt = 1 if st.session_state.get("shuffle_options", True) else 0
+    seed = st.session_state.shuffle_seed.get(k, 0)
+    base = f"{mode}:{n}:{shuf_opt}:{seed}:{q['id']}"
     return f"{base}:{letter}" if letter else base
 
 
@@ -152,15 +218,22 @@ def week_status_icon(year: int, week: int) -> str:
 # --------------------------------------------------------------------------------------
 # Callbacks (run before the next script rerun)
 # --------------------------------------------------------------------------------------
-def save_single(mode: str, q: dict) -> None:
+def save_single(mode: str, q: dict, disp_q: dict) -> None:
     val = st.session_state.get(widget_key(mode, q))
-    st.session_state.responses[mode][q["id"]] = [val] if val else []
+    if val:
+        orig_val = disp_q["_new_to_orig"].get(val, val)
+        st.session_state.responses[mode][q["id"]] = [orig_val]
+    else:
+        st.session_state.responses[mode][q["id"]] = []
 
 
-def save_multi(mode: str, q: dict) -> None:
-    st.session_state.responses[mode][q["id"]] = [
-        L for L in q["options"] if st.session_state.get(widget_key(mode, q, L))
-    ]
+def save_multi(mode: str, q: dict, disp_q: dict) -> None:
+    chosen = []
+    for disp_L in disp_q["options"]:
+        orig_L = disp_q["_new_to_orig"][disp_L]
+        if st.session_state.get(widget_key(mode, q, orig_L)):
+            chosen.append(orig_L)
+    st.session_state.responses[mode][q["id"]] = chosen
 
 
 def check_practice(q: dict) -> None:
@@ -232,6 +305,7 @@ def reset_week(year: int, week: int) -> None:
     ss.exam.pop(k, None)
     ss.practice_logged.discard(k)
     ss.nonce[k] = ss.nonce.get(k, 0) + 1   # brand-new widget keys = blank inputs
+    ss.shuffle_seed[k] = random.randint(1, 1_000_000)
 
 
 def reset_year(year: int) -> None:
@@ -248,29 +322,32 @@ def fmt_letters(letters: list[str]) -> str:
     return ", ".join(letters) if letters else "—"
 
 
-def render_inputs(mode: str, q: dict, disabled: bool) -> None:
+def render_inputs(mode: str, q: dict, disp_q: dict, disabled: bool) -> None:
     saved = response(mode, q)
-    if q["type"] == "single":
-        letters = list(q["options"])
+    orig_to_new = disp_q["_orig_to_new"]
+    disp_saved = [orig_to_new[k] for k in saved if k in orig_to_new]
+    if disp_q["type"] == "single":
+        letters = list(disp_q["options"])
         st.radio(
             "Your answer",
             options=letters,
-            index=letters.index(saved[0]) if saved else None,
-            format_func=lambda L: f"**{L}.** {q['options'][L]}",
+            index=letters.index(disp_saved[0]) if disp_saved else None,
+            format_func=lambda L: f"**{L}.** {disp_q['options'][L]}",
             key=widget_key(mode, q),
             on_change=save_single,
-            args=(mode, q),
+            args=(mode, q, disp_q),
             disabled=disabled,
             label_visibility="collapsed",
         )
     else:
-        for L, text in q["options"].items():
+        for disp_L, text in disp_q["options"].items():
+            orig_L = disp_q["_new_to_orig"][disp_L]
             st.checkbox(
-                f"**{L}.** {text}",
-                value=L in saved,
-                key=widget_key(mode, q, L),
+                f"**{disp_L}.** {text}",
+                value=orig_L in saved,
+                key=widget_key(mode, q, orig_L),
                 on_change=save_multi,
-                args=(mode, q),
+                args=(mode, q, disp_q),
                 disabled=disabled,
             )
 
@@ -319,20 +396,54 @@ def week_metrics(year: int, week: int) -> None:
 
 
 # --------------------------------------------------------------------------------------
+# Controls
+# --------------------------------------------------------------------------------------
+def render_shuffle_controls(year: int, week: int) -> None:
+    ensure_shuffle_seed(year, week)
+    is_exam_running = (
+        exam_state(year, week)["started_at"] is not None
+        and not exam_state(year, week)["submitted"]
+    )
+    with st.container(border=True):
+        c1, c2, c3 = st.columns([1.5, 1.5, 1.0])
+        with c1:
+            st.toggle(
+                "🔀 Shuffle questions",
+                key="shuffle_questions",
+                help="Randomizes the question order for this week.",
+            )
+        with c2:
+            st.toggle(
+                "🔀 Shuffle options",
+                key="shuffle_options",
+                help="Randomizes the choice order (A, B, C, D) inside each question.",
+            )
+        with c3:
+            if st.button("🎲 Reshuffle", key=f"reshuffle_{year}_{week}",
+                         help="Generate a new random shuffle for this week", width="stretch",
+                         disabled=is_exam_running):
+                reshuffle_week(year, week)
+                st.rerun()
+
+
+# --------------------------------------------------------------------------------------
 # Practice mode
 # --------------------------------------------------------------------------------------
 def practice_view(year: int, week: int) -> None:
-    qs = WEEKS[year][week]["questions"]
+    qs = get_week_questions(year, week)
     week_metrics(year, week)
     st.write("")
     for i, q in enumerate(qs, 1):
+        disp_q = get_display_question(q)
         checked = q["id"] in st.session_state.checked
         with st.container(border=True):
-            question_header(q, i, len(qs))
-            render_inputs(PRACTICE, q, disabled=checked)
+            question_header(disp_q, i, len(qs))
+            render_inputs(PRACTICE, q, disp_q, disabled=checked)
             if checked:
-                render_feedback(q, response(PRACTICE, q))
-                render_explanation(q, expanded=True)
+                saved = response(PRACTICE, q)
+                disp_saved = [disp_q["_orig_to_new"][k] for k in saved if k in disp_q["_orig_to_new"]]
+                render_feedback(disp_q, disp_saved)
+                render_explanation(disp_q, expanded=True)
             else:
                 st.button("Check answer", key=f"check:{widget_key(PRACTICE, q)}",
                           on_click=check_practice, args=(q,))
@@ -364,7 +475,7 @@ def countdown(year: int, week: int) -> None:
 
 
 def exam_view(year: int, week: int, timed: bool) -> None:
-    qs = WEEKS[year][week]["questions"]
+    qs = get_week_questions(year, week)
     s = exam_state(year, week)
 
     # 1) Not started
@@ -386,9 +497,10 @@ def exam_view(year: int, week: int, timed: bool) -> None:
         answered = sum(bool(response(EXAM, q)) for q in qs)
         st.caption(f"{answered} of {len(qs)} answered")
         for i, q in enumerate(qs, 1):
+            disp_q = get_display_question(q)
             with st.container(border=True):
-                question_header(q, i, len(qs))
-                render_inputs(EXAM, q, disabled=False)
+                question_header(disp_q, i, len(qs))
+                render_inputs(EXAM, q, disp_q, disabled=False)
         st.button("Submit exam", type="primary", on_click=submit_exam, args=(year, week),
                   width="stretch")
         return
@@ -408,17 +520,20 @@ def exam_view(year: int, week: int, timed: bool) -> None:
     st.subheader("Review")
     only_wrong = st.toggle("Show only questions I missed")
     for i, q in enumerate(qs, 1):
+        disp_q = get_display_question(q)
         resp = response(EXAM, q)
         if only_wrong and is_correct(resp, q):
             continue
         with st.container(border=True):
-            question_header(q, i, len(qs))
-            for L, text in q["options"].items():
-                mark = "✅" if L in q["correct_answer"] else ("❌" if L in resp else "▫️")
-                mine = " _(your answer)_" if L in resp else ""
-                st.markdown(f"{mark} **{L}.** {text}{mine}")
-            render_feedback(q, resp)
-            render_explanation(q, expanded=False)
+            question_header(disp_q, i, len(qs))
+            for disp_L, text in disp_q["options"].items():
+                orig_L = disp_q["_new_to_orig"][disp_L]
+                mark = "✅" if orig_L in q["correct_answer"] else ("❌" if orig_L in resp else "▫️")
+                mine = " _(your answer)_" if orig_L in resp else ""
+                st.markdown(f"{mark} **{disp_L}.** {text}{mine}")
+            disp_resp = [disp_q["_orig_to_new"][k] for k in resp if k in disp_q["_orig_to_new"]]
+            render_feedback(disp_q, disp_resp)
+            render_explanation(disp_q, expanded=False)
     st.button("Retry this week", on_click=reset_week, args=(year, week), key="retry_bottom")
 
 
@@ -586,6 +701,7 @@ def main() -> None:
     st.caption(BANKS[year].get("source", ""))
     tab_quiz, tab_dash = st.tabs(["📝 Quiz", "📊 Results dashboard"])
     with tab_quiz:
+        render_shuffle_controls(year, week)
         if mode == PRACTICE:
             practice_view(year, week)
         else:
