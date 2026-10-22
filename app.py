@@ -860,7 +860,6 @@ def boss_practice_view(qs: list[dict]) -> None:
 
     checked = q["id"] in st.session_state.boss_checked
     with st.container(border=True):
-        st.caption(f"**From {q['year']} Week {q['week']}**")
         question_header(disp_q, curr_idx + 1, len(qs))
         render_inputs(PRACTICE, q, disp_q, disabled=checked, is_boss=True)
         if checked:
@@ -920,7 +919,6 @@ def boss_exam_view(qs: list[dict]) -> None:
         disp_q = get_display_question(q, is_boss=True)
 
         with st.container(border=True):
-            st.caption(f"**From {q['year']} Week {q['week']}**")
             question_header(disp_q, curr_idx + 1, len(qs))
             render_inputs(EXAM, q, disp_q, disabled=False, is_boss=True)
 
@@ -964,7 +962,6 @@ def boss_exam_view(qs: list[dict]) -> None:
     resp = response(EXAM, q, is_boss=True)
 
     with st.container(border=True):
-        st.caption(f"**From {q['year']} Week {q['week']}**")
         question_header(disp_q, curr_idx + 1, len(qs))
         for disp_L, text in disp_q["options"].items():
             orig_L = disp_q["_new_to_orig"][disp_L]
