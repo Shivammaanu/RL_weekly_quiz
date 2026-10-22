@@ -99,6 +99,34 @@ def stable_seed(*args: object) -> int:
 # --------------------------------------------------------------------------------------
 # Session state
 # --------------------------------------------------------------------------------------
+def active_boss_qset(qset: str | None = None) -> str:
+    return qset or st.session_state.get("boss_year_choice", "Both")
+
+
+def get_boss_state(qset: str | None = None) -> dict:
+    qs_key = active_boss_qset(qset)
+    if "boss_data" not in st.session_state:
+        st.session_state.boss_data = {}
+    if qs_key not in st.session_state.boss_data:
+        st.session_state.boss_data[qs_key] = {
+            "idx": 0,
+            "seed": random.randint(1, 1_000_000),
+            "nonce": 0,
+            "responses": {PRACTICE: {}, EXAM: {}},
+            "graded": {},
+            "checked": set(),
+            "flash": {},
+            "exam": {
+                "started_at": None,
+                "deadline": None,
+                "submitted": False,
+                "timed_out": False,
+                "submitted_at": None,
+            },
+        }
+    return st.session_state.boss_data[qs_key]
+
+
 def init_state() -> None:
     ss = st.session_state
     ss.setdefault("responses", {PRACTICE: {}, EXAM: {}})  # mode -> qid -> [letters]
@@ -115,15 +143,9 @@ def init_state() -> None:
     # Final Boss 💀 state
     ss.setdefault("boss_style", PRACTICE)
     ss.setdefault("boss_year_choice", "Both")
-    ss.setdefault("prev_boss_year", "Both")
-    ss.setdefault("boss_idx", 0)
-    ss.setdefault("boss_seed", random.randint(1, 1_000_000))
-    ss.setdefault("boss_nonce", 0)
-    ss.setdefault("boss_responses", {PRACTICE: {}, EXAM: {}})
-    ss.setdefault("boss_graded", {})
-    ss.setdefault("boss_checked", set())
-    ss.setdefault("boss_flash", {})
-    ss.setdefault("boss_exam", {"started_at": None, "deadline": None, "submitted": False, "timed_out": False})
+    ss.setdefault("boss_data", {})
+    for qk in ["Both", "Only 2026", "Only 2025"]:
+        get_boss_state(qk)
 
 
 def ensure_shuffle_seed(year: int, week: int) -> int:
@@ -150,13 +172,13 @@ def get_week_questions(year: int, week: int) -> list[dict]:
     return shuffled
 
 
-def get_option_mapping(q: dict, is_boss: bool = False) -> tuple[dict[str, str], dict[str, str]]:
+def get_option_mapping(q: dict, is_boss: bool = False, qset: str | None = None) -> tuple[dict[str, str], dict[str, str]]:
     """Returns (new_to_orig, orig_to_new) letter mappings."""
     orig_keys = list(q["options"].keys())
     if not is_boss and not st.session_state.get("shuffle_options", True):
         identity = {k: k for k in orig_keys}
         return identity, identity
-    seed = st.session_state.boss_seed if is_boss else ensure_shuffle_seed(q["year"], q["week"])
+    seed = get_boss_state(qset)["seed"] if is_boss else ensure_shuffle_seed(q["year"], q["week"])
     q_seed = stable_seed(seed, q["id"], "options")
     rng = random.Random(q_seed)
     shuffled_orig_keys = list(orig_keys)
@@ -166,8 +188,8 @@ def get_option_mapping(q: dict, is_boss: bool = False) -> tuple[dict[str, str], 
     return new_to_orig, orig_to_new
 
 
-def get_display_question(q: dict, is_boss: bool = False) -> dict:
-    new_to_orig, orig_to_new = get_option_mapping(q, is_boss=is_boss)
+def get_display_question(q: dict, is_boss: bool = False, qset: str | None = None) -> dict:
+    new_to_orig, orig_to_new = get_option_mapping(q, is_boss=is_boss, qset=qset)
     orig_keys = list(q["options"].keys())
     disp_options = {new_k: q["options"][new_to_orig[new_k]] for new_k in orig_keys}
     disp_correct = sorted([orig_to_new[k] for k in q["correct_answer"]])
@@ -185,12 +207,14 @@ def exam_state(year: int, week: int) -> dict:
     )
 
 
-def widget_key(mode: str, q: dict, letter: str | None = None, is_boss: bool = False) -> str:
+def widget_key(mode: str, q: dict, letter: str | None = None, is_boss: bool = False, qset: str | None = None) -> str:
     if is_boss:
-        n = st.session_state.boss_nonce
+        qs_key = active_boss_qset(qset)
+        bstate = get_boss_state(qs_key)
+        n = bstate["nonce"]
         shuf_opt = 1 if st.session_state.get("shuffle_options", True) else 0
-        seed = st.session_state.boss_seed
-        base = f"boss:{mode}:{n}:{shuf_opt}:{seed}:{q['id']}"
+        seed = bstate["seed"]
+        base = f"boss:{qs_key}:{mode}:{n}:{shuf_opt}:{seed}:{q['id']}"
     else:
         k = wkey(q["year"], q["week"])
         n = st.session_state.nonce.get(k, 0)
@@ -200,9 +224,10 @@ def widget_key(mode: str, q: dict, letter: str | None = None, is_boss: bool = Fa
     return f"{base}:{letter}" if letter else base
 
 
-def response(mode: str, q: dict, is_boss: bool = False) -> list[str]:
-    d = st.session_state.boss_responses[mode] if is_boss else st.session_state.responses[mode]
-    return d.get(q["id"], [])
+def response(mode: str, q: dict, is_boss: bool = False, qset: str | None = None) -> list[str]:
+    if is_boss:
+        return get_boss_state(qset)["responses"][mode].get(q["id"], [])
+    return st.session_state.responses[mode].get(q["id"], [])
 
 
 def is_correct(resp: list[str], q: dict) -> bool:
@@ -240,9 +265,9 @@ def week_status_icon(year: int, week: int) -> str:
 # --------------------------------------------------------------------------------------
 # Callbacks (run before the next script rerun)
 # --------------------------------------------------------------------------------------
-def save_single(mode: str, q: dict, disp_q: dict, is_boss: bool = False) -> None:
-    val = st.session_state.get(widget_key(mode, q, is_boss=is_boss))
-    target = st.session_state.boss_responses[mode] if is_boss else st.session_state.responses[mode]
+def save_single(mode: str, q: dict, disp_q: dict, is_boss: bool = False, qset: str | None = None) -> None:
+    val = st.session_state.get(widget_key(mode, q, is_boss=is_boss, qset=qset))
+    target = get_boss_state(qset)["responses"][mode] if is_boss else st.session_state.responses[mode]
     if val:
         orig_val = disp_q["_new_to_orig"].get(val, val)
         target[q["id"]] = [orig_val]
@@ -250,13 +275,13 @@ def save_single(mode: str, q: dict, disp_q: dict, is_boss: bool = False) -> None
         target[q["id"]] = []
 
 
-def save_multi(mode: str, q: dict, disp_q: dict, is_boss: bool = False) -> None:
+def save_multi(mode: str, q: dict, disp_q: dict, is_boss: bool = False, qset: str | None = None) -> None:
     chosen = []
     for disp_L in disp_q["options"]:
         orig_L = disp_q["_new_to_orig"][disp_L]
-        if st.session_state.get(widget_key(mode, q, orig_L, is_boss=is_boss)):
+        if st.session_state.get(widget_key(mode, q, orig_L, is_boss=is_boss, qset=qset)):
             chosen.append(orig_L)
-    target = st.session_state.boss_responses[mode] if is_boss else st.session_state.responses[mode]
+    target = get_boss_state(qset)["responses"][mode] if is_boss else st.session_state.responses[mode]
     target[q["id"]] = chosen
 
 
@@ -346,8 +371,8 @@ def fmt_letters(letters: list[str]) -> str:
     return ", ".join(letters) if letters else "—"
 
 
-def render_inputs(mode: str, q: dict, disp_q: dict, disabled: bool, is_boss: bool = False) -> None:
-    saved = response(mode, q, is_boss=is_boss)
+def render_inputs(mode: str, q: dict, disp_q: dict, disabled: bool, is_boss: bool = False, qset: str | None = None) -> None:
+    saved = response(mode, q, is_boss=is_boss, qset=qset)
     orig_to_new = disp_q["_orig_to_new"]
     disp_saved = [orig_to_new[k] for k in saved if k in orig_to_new]
     if disp_q["type"] == "single":
@@ -357,9 +382,9 @@ def render_inputs(mode: str, q: dict, disp_q: dict, disabled: bool, is_boss: boo
             options=letters,
             index=letters.index(disp_saved[0]) if disp_saved else None,
             format_func=lambda L: f"**{L}.** {disp_q['options'][L]}",
-            key=widget_key(mode, q, is_boss=is_boss),
+            key=widget_key(mode, q, is_boss=is_boss, qset=qset),
             on_change=save_single,
-            args=(mode, q, disp_q, is_boss),
+            args=(mode, q, disp_q, is_boss, qset),
             disabled=disabled,
             label_visibility="collapsed",
         )
@@ -369,9 +394,9 @@ def render_inputs(mode: str, q: dict, disp_q: dict, disabled: bool, is_boss: boo
             st.checkbox(
                 f"**{disp_L}.** {text}",
                 value=orig_L in saved,
-                key=widget_key(mode, q, orig_L, is_boss=is_boss),
+                key=widget_key(mode, q, orig_L, is_boss=is_boss, qset=qset),
                 on_change=save_multi,
-                args=(mode, q, disp_q, is_boss),
+                args=(mode, q, disp_q, is_boss, qset),
                 disabled=disabled,
             )
 
@@ -690,46 +715,51 @@ def get_boss_pool(year_filter: str = "Both") -> list[dict]:
 
 def get_boss_questions(year_filter: str = "Both") -> list[dict]:
     pool = get_boss_pool(year_filter)
-    rng = random.Random(st.session_state.boss_seed)
+    bstate = get_boss_state(year_filter)
+    rng = random.Random(bstate["seed"])
     shuffled = list(pool)
     rng.shuffle(shuffled)
     return shuffled
 
 
-def reshuffle_boss() -> None:
-    st.session_state.boss_seed = random.randint(1, 1_000_000)
-    st.session_state.boss_nonce += 1
-    st.session_state.boss_idx = 0
+def reshuffle_boss(qset: str | None = None) -> None:
+    bstate = get_boss_state(qset)
+    bstate["seed"] = random.randint(1, 1_000_000)
+    bstate["nonce"] += 1
+    bstate["idx"] = 0
 
 
-def reset_boss() -> None:
-    ss = st.session_state
-    ss.boss_responses = {PRACTICE: {}, EXAM: {}}
-    ss.boss_graded = {}
-    ss.boss_checked = set()
-    ss.boss_flash = {}
-    ss.boss_exam = {
+def reset_boss(qset: str | None = None) -> None:
+    bstate = get_boss_state(qset)
+    bstate["responses"] = {PRACTICE: {}, EXAM: {}}
+    bstate["graded"] = {}
+    bstate["checked"] = set()
+    bstate["flash"] = {}
+    bstate["exam"] = {
         "started_at": None,
         "deadline": None,
         "submitted": False,
         "timed_out": False,
+        "submitted_at": None,
     }
-    ss.boss_nonce += 1
-    ss.boss_seed = random.randint(1, 1_000_000)
-    ss.boss_idx = 0
+    bstate["nonce"] += 1
+    bstate["seed"] = random.randint(1, 1_000_000)
+    bstate["idx"] = 0
 
 
-def check_boss_practice(q: dict) -> None:
-    resp = response(PRACTICE, q, is_boss=True)
+def check_boss_practice(q: dict, qset: str | None = None) -> None:
+    bstate = get_boss_state(qset)
+    resp = response(PRACTICE, q, is_boss=True, qset=qset)
     if not resp:
-        st.session_state.boss_flash[q["id"]] = "Choose an answer before checking."
+        bstate["flash"][q["id"]] = "Choose an answer before checking."
         return
-    st.session_state.boss_checked.add(q["id"])
-    st.session_state.boss_graded[q["id"]] = {"correct": is_correct(resp, q), "mode": PRACTICE}
+    bstate["checked"].add(q["id"])
+    bstate["graded"][q["id"]] = {"correct": is_correct(resp, q), "mode": PRACTICE}
 
 
-def start_boss_exam(exam_minutes: int = 180) -> None:
-    s = st.session_state.boss_exam
+def start_boss_exam(qset: str | None = None, exam_minutes: int = 180) -> None:
+    bstate = get_boss_state(qset)
+    s = bstate["exam"]
     now = time.time()
     s["started_at"] = now
     s["deadline"] = now + exam_minutes * 60
@@ -737,22 +767,24 @@ def start_boss_exam(exam_minutes: int = 180) -> None:
     s["timed_out"] = False
 
 
-def submit_boss_exam(timed_out: bool = False, qs: list[dict] | None = None) -> None:
-    s = st.session_state.boss_exam
+def submit_boss_exam(timed_out: bool = False, qs: list[dict] | None = None, qset: str | None = None) -> None:
+    bstate = get_boss_state(qset)
+    s = bstate["exam"]
     if s["submitted"]:
         return
-    pool = qs if qs is not None else get_boss_questions(st.session_state.get("boss_year_choice", "Both"))
+    pool = qs if qs is not None else get_boss_questions(active_boss_qset(qset))
     for q in pool:
-        ok = is_correct(response(EXAM, q, is_boss=True), q)
-        st.session_state.boss_graded[q["id"]] = {"correct": ok, "mode": EXAM}
+        ok = is_correct(response(EXAM, q, is_boss=True, qset=qset), q)
+        bstate["graded"][q["id"]] = {"correct": ok, "mode": EXAM}
     s["submitted"] = True
     s["timed_out"] = timed_out
     s["submitted_at"] = time.time()
 
 
 @st.fragment(run_every=1)
-def boss_countdown(exam_minutes: int = 180, qs: list[dict] | None = None) -> None:
-    s = st.session_state.boss_exam
+def boss_countdown(exam_minutes: int = 180, qs: list[dict] | None = None, qset: str | None = None) -> None:
+    bstate = get_boss_state(qset)
+    s = bstate["exam"]
     if s.get("submitted"):
         return
     now = time.time()
@@ -765,7 +797,7 @@ def boss_countdown(exam_minutes: int = 180, qs: list[dict] | None = None) -> Non
 
     remaining = max(0.0, s["deadline"] - now)
     if remaining <= 0:
-        submit_boss_exam(timed_out=True, qs=qs)
+        submit_boss_exam(timed_out=True, qs=qs, qset=qset)
         st.rerun()
     hours, rem = divmod(int(remaining), 3600)
     mins, secs = divmod(rem, 60)
@@ -779,10 +811,11 @@ def boss_countdown(exam_minutes: int = 180, qs: list[dict] | None = None) -> Non
     st.progress(frac, text=f"⏱️ Time left: {hours:02d}h {mins:02d}m {secs:02d}s (of {exam_minutes} mins)")
 
 
-def render_boss_shuffle_controls(boss_style: str = PRACTICE, exam_minutes: int = 180, total_qs: int = 219, year_desc: str = "2025 & 2026") -> None:
+def render_boss_shuffle_controls(boss_style: str = PRACTICE, exam_minutes: int = 180, total_qs: int = 219, year_desc: str = "2025 & 2026", qset: str | None = None) -> None:
+    bstate = get_boss_state(qset)
     is_exam_running = (
-        st.session_state.boss_exam.get("started_at") is not None
-        and not st.session_state.boss_exam.get("submitted", False)
+        bstate["exam"].get("started_at") is not None
+        and not bstate["exam"].get("submitted", False)
     )
     with st.container(border=True):
         c1, c2 = st.columns([3, 1])
@@ -798,15 +831,16 @@ def render_boss_shuffle_controls(boss_style: str = PRACTICE, exam_minutes: int =
                     f"🔀 **Gauntlet Mode Active**: All {total_qs} questions ({year_desc}) and their options are randomly shuffled."
                 )
         with c2:
-            if st.button("🎲 Reshuffle", key="reshuffle_boss",
+            if st.button("🎲 Reshuffle", key=f"reshuffle_boss_{qset}",
                          help="Generate a new random shuffle for the Boss fight", width="stretch",
                          disabled=is_exam_running):
-                reshuffle_boss()
+                reshuffle_boss(qset)
                 st.rerun()
 
 
-def render_boss_navigator(qs: list[dict], mode: str) -> None:
-    curr_idx = min(st.session_state.boss_idx, len(qs) - 1)
+def render_boss_navigator(qs: list[dict], mode: str, qset: str | None = None) -> None:
+    bstate = get_boss_state(qset)
+    curr_idx = min(bstate["idx"], len(qs) - 1)
     total = len(qs)
     chunk_size = 50
     ranges = []
@@ -824,32 +858,33 @@ def render_boss_navigator(qs: list[dict], mode: str) -> None:
                     col = cols[(i - start) % 10]
                     is_curr = (i == curr_idx)
                     if mode == PRACTICE:
-                        checked = q["id"] in st.session_state.boss_checked
+                        checked = q["id"] in bstate["checked"]
                         if checked:
-                            corr = st.session_state.boss_graded.get(q["id"], {}).get("correct", False)
+                            corr = bstate["graded"].get(q["id"], {}).get("correct", False)
                             badge = "✅" if corr else "❌"
                         else:
                             badge = "👉" if is_curr else ""
                     else:
-                        if st.session_state.boss_exam["submitted"]:
-                            corr = st.session_state.boss_graded.get(q["id"], {}).get("correct", False)
-                            badge = "✅" if corr else ("⚪" if not response(EXAM, q, is_boss=True) else "❌")
+                        if bstate["exam"]["submitted"]:
+                            corr = bstate["graded"].get(q["id"], {}).get("correct", False)
+                            badge = "✅" if corr else ("⚪" if not response(EXAM, q, is_boss=True, qset=qset) else "❌")
                         else:
-                            has_ans = bool(response(EXAM, q, is_boss=True))
+                            has_ans = bool(response(EXAM, q, is_boss=True, qset=qset))
                             badge = "👉" if is_curr else ("●" if has_ans else "")
                     lbl = f"{badge} {i + 1}" if badge else f"{i + 1}"
-                    if col.button(lbl, key=f"bnav_{i}_{q['id']}", width="stretch",
+                    if col.button(lbl, key=f"bnav_{qset}_{i}_{q['id']}", width="stretch",
                                   type="primary" if is_curr else "secondary"):
-                        st.session_state.boss_idx = i
+                        bstate["idx"] = i
                         st.rerun()
 
 
-def render_boss_stepper(qs: list[dict]) -> None:
-    curr_idx = min(st.session_state.boss_idx, len(qs) - 1)
+def render_boss_stepper(qs: list[dict], qset: str | None = None) -> None:
+    bstate = get_boss_state(qset)
+    curr_idx = min(bstate["idx"], len(qs) - 1)
     c1, c2, c3 = st.columns([1, 2, 1])
     with c1:
-        if st.button("⬅️ Previous", key=f"boss_prev_top_{curr_idx}", disabled=curr_idx <= 0, width="stretch"):
-            st.session_state.boss_idx -= 1
+        if st.button("⬅️ Previous", key=f"boss_prev_top_{qset}_{curr_idx}", disabled=curr_idx <= 0, width="stretch"):
+            bstate["idx"] -= 1
             st.rerun()
     with c2:
         st.markdown(
@@ -858,59 +893,61 @@ def render_boss_stepper(qs: list[dict]) -> None:
             unsafe_allow_html=True,
         )
     with c3:
-        if st.button("Next ➡️", key=f"boss_next_top_{curr_idx}", disabled=curr_idx >= len(qs) - 1, width="stretch"):
-            st.session_state.boss_idx += 1
+        if st.button("Next ➡️", key=f"boss_next_top_{qset}_{curr_idx}", disabled=curr_idx >= len(qs) - 1, width="stretch"):
+            bstate["idx"] += 1
             st.rerun()
 
 
-def boss_practice_view(qs: list[dict]) -> None:
-    curr_idx = min(st.session_state.boss_idx, len(qs) - 1)
+def boss_practice_view(qs: list[dict], qset: str | None = None) -> None:
+    bstate = get_boss_state(qset)
+    curr_idx = min(bstate["idx"], len(qs) - 1)
     q = qs[curr_idx]
-    disp_q = get_display_question(q, is_boss=True)
+    disp_q = get_display_question(q, is_boss=True, qset=qset)
 
-    n_checked = len(st.session_state.boss_checked)
-    n_correct = sum(st.session_state.boss_graded.get(k, {}).get("correct", False) for k in st.session_state.boss_checked)
+    n_checked = len([x for x in qs if x["id"] in bstate["checked"]])
+    n_correct = sum(bstate["graded"].get(x["id"], {}).get("correct", False) for x in qs if x["id"] in bstate["checked"])
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total questions", len(qs))
     c2.metric("Checked", f"{n_checked}/{len(qs)}")
     c3.metric("Correct", n_correct)
     c4.metric("Accuracy", f"{100 * n_correct / n_checked:.0f}%" if n_checked else "—")
 
-    render_boss_navigator(qs, PRACTICE)
-    render_boss_stepper(qs)
+    render_boss_navigator(qs, PRACTICE, qset=qset)
+    render_boss_stepper(qs, qset=qset)
 
-    checked = q["id"] in st.session_state.boss_checked
+    checked = q["id"] in bstate["checked"]
     with st.container(border=True):
         question_header(disp_q, curr_idx + 1, len(qs))
-        render_inputs(PRACTICE, q, disp_q, disabled=checked, is_boss=True)
+        render_inputs(PRACTICE, q, disp_q, disabled=checked, is_boss=True, qset=qset)
         if checked:
-            saved = response(PRACTICE, q, is_boss=True)
+            saved = response(PRACTICE, q, is_boss=True, qset=qset)
             disp_saved = [disp_q["_orig_to_new"][k] for k in saved if k in disp_q["_orig_to_new"]]
             render_feedback(disp_q, disp_saved)
             render_explanation(disp_q, expanded=True)
         else:
-            st.button("Check answer", key=f"boss_check:{widget_key(PRACTICE, q, is_boss=True)}",
-                      on_click=check_boss_practice, args=(q,))
-            msg = st.session_state.boss_flash.pop(q["id"], None)
+            st.button("Check answer", key=f"boss_check_{qset}:{widget_key(PRACTICE, q, is_boss=True, qset=qset)}",
+                      on_click=check_boss_practice, args=(q, qset))
+            msg = bstate["flash"].pop(q["id"], None)
             if msg:
                 st.warning(msg)
 
     c_prev, _, c_next = st.columns([1, 2, 1])
     with c_prev:
-        if st.button("⬅️ Previous", key="boss_prev_bot", disabled=curr_idx <= 0, width="stretch"):
-            st.session_state.boss_idx -= 1
+        if st.button("⬅️ Previous", key=f"boss_prev_bot_{qset}", disabled=curr_idx <= 0, width="stretch"):
+            bstate["idx"] -= 1
             st.rerun()
     with c_next:
         if curr_idx < len(qs) - 1:
-            if st.button("Next Question ➡️", key="boss_next_bot", type="primary", width="stretch"):
-                st.session_state.boss_idx += 1
+            if st.button("Next Question ➡️", key=f"boss_next_bot_{qset}", type="primary", width="stretch"):
+                bstate["idx"] += 1
                 st.rerun()
         else:
             st.success("🎉 You've reached the final question of the gauntlet!")
 
 
-def boss_exam_view(qs: list[dict], exam_minutes: int = 180) -> None:
-    s = st.session_state.boss_exam
+def boss_exam_view(qs: list[dict], exam_minutes: int = 180, qset: str | None = None) -> None:
+    bstate = get_boss_state(qset)
+    s = bstate["exam"]
     exam_seconds = exam_minutes * 60
 
     # Ensure timer is active with the full duration
@@ -925,45 +962,45 @@ def boss_exam_view(qs: list[dict], exam_minutes: int = 180) -> None:
 
     # 1) In progress
     if not s["submitted"]:
-        answered = sum(bool(response(EXAM, q, is_boss=True)) for q in qs)
+        answered = sum(bool(response(EXAM, q, is_boss=True, qset=qset)) for q in qs)
 
         c1, c2 = st.columns(2)
         c1.metric("Total Questions", len(qs))
         c2.metric("Questions Answered", f"{answered} / {len(qs)}")
 
-        boss_countdown(exam_minutes, qs)
+        boss_countdown(exam_minutes, qs, qset=qset)
 
-        render_boss_navigator(qs, EXAM)
-        render_boss_stepper(qs)
+        render_boss_navigator(qs, EXAM, qset=qset)
+        render_boss_stepper(qs, qset=qset)
 
-        curr_idx = min(st.session_state.boss_idx, len(qs) - 1)
+        curr_idx = min(bstate["idx"], len(qs) - 1)
         q = qs[curr_idx]
-        disp_q = get_display_question(q, is_boss=True)
+        disp_q = get_display_question(q, is_boss=True, qset=qset)
 
         with st.container(border=True):
             question_header(disp_q, curr_idx + 1, len(qs))
-            render_inputs(EXAM, q, disp_q, disabled=False, is_boss=True)
+            render_inputs(EXAM, q, disp_q, disabled=False, is_boss=True, qset=qset)
 
         c_prev, c_sub, c_next = st.columns([1, 1.5, 1])
         with c_prev:
-            if st.button("⬅️ Previous", key="boss_ex_prev", disabled=curr_idx <= 0, width="stretch"):
-                st.session_state.boss_idx -= 1
+            if st.button("⬅️ Previous", key=f"boss_ex_prev_{qset}", disabled=curr_idx <= 0, width="stretch"):
+                bstate["idx"] -= 1
                 st.rerun()
         with c_sub:
             with st.popover("🏁 Submit Exam", width="stretch"):
                 st.write(f"You have answered **{answered} of {len(qs)}** questions.")
                 if answered < len(qs):
                     st.warning(f"⚠️ {len(qs) - answered} questions are unanswered!")
-                st.button("Yes, Submit Exam", type="primary", on_click=submit_boss_exam, args=(False, qs), width="stretch")
+                st.button("Yes, Submit Exam", type="primary", on_click=submit_boss_exam, args=(False, qs, qset), width="stretch", key=f"boss_submit_btn_{qset}")
         with c_next:
-            if st.button("Next ➡️", key="boss_ex_next", disabled=curr_idx >= len(qs) - 1, width="stretch"):
-                st.session_state.boss_idx += 1
+            if st.button("Next ➡️", key=f"boss_ex_next_{qset}", disabled=curr_idx >= len(qs) - 1, width="stretch"):
+                bstate["idx"] += 1
                 st.rerun()
         return
 
     # 2) Submitted
-    correct = sum(st.session_state.boss_graded.get(q["id"], {}).get("correct", False) for q in qs)
-    unanswered = sum(not response(EXAM, q, is_boss=True) for q in qs)
+    correct = sum(bstate["graded"].get(q["id"], {}).get("correct", False) for q in qs)
+    unanswered = sum(not response(EXAM, q, is_boss=True, qset=qset) for q in qs)
     secs = int(s["submitted_at"] - s["started_at"])
     if s["timed_out"]:
         st.warning(f"⏱️ Time ran out ({exam_minutes} minutes reached), so your exam was submitted automatically.")
@@ -975,13 +1012,13 @@ def boss_exam_view(qs: list[dict], exam_minutes: int = 180) -> None:
     c4.metric("Time Taken", f"{secs // 3600}h {(secs % 3600) // 60}m {secs % 60:02d}s (Limit: {exam_minutes}m)")
 
     st.subheader("Exam Review")
-    render_boss_navigator(qs, EXAM)
-    render_boss_stepper(qs)
+    render_boss_navigator(qs, EXAM, qset=qset)
+    render_boss_stepper(qs, qset=qset)
 
-    curr_idx = min(st.session_state.boss_idx, len(qs) - 1)
+    curr_idx = min(bstate["idx"], len(qs) - 1)
     q = qs[curr_idx]
-    disp_q = get_display_question(q, is_boss=True)
-    resp = response(EXAM, q, is_boss=True)
+    disp_q = get_display_question(q, is_boss=True, qset=qset)
+    resp = response(EXAM, q, is_boss=True, qset=qset)
 
     with st.container(border=True):
         question_header(disp_q, curr_idx + 1, len(qs))
@@ -995,14 +1032,15 @@ def boss_exam_view(qs: list[dict], exam_minutes: int = 180) -> None:
         render_explanation(disp_q, expanded=True)
 
     st.divider()
-    st.button("Retry Final Boss", on_click=reset_boss, width="stretch", key="retry_boss_btn")
+    st.button(f"Retry Final Boss ({qset})", on_click=reset_boss, args=(qset,), width="stretch", key=f"retry_boss_btn_{qset}")
 
 
-def boss_stats_view(qs: list[dict], mode: str) -> None:
-    st.subheader("Performance Breakdown")
-    graded = st.session_state.boss_graded
+def boss_stats_view(qs: list[dict], mode: str, qset: str | None = None) -> None:
+    st.subheader(f"Performance Breakdown ({qset})")
+    bstate = get_boss_state(qset)
+    graded = bstate["graded"]
     if not graded:
-        st.info("No questions graded yet. Check an answer in Practice or submit an Exam to see analytics.")
+        st.info(f"No questions graded yet for {qset}. Check an answer in Practice or submit an Exam to see analytics.")
         return
 
     rows = []
@@ -1017,6 +1055,23 @@ def boss_stats_view(qs: list[dict], mode: str) -> None:
             "Correct": corr,
             "Score %": (100 * corr / len(done)) if done else None,
         })
+    df = pd.DataFrame(rows)
+
+    fig = go.Figure()
+    fig.add_bar(x=df["Week"], y=df["Score %"], name="Score %",
+                marker_color=[score_color(v) for v in df["Score %"]],
+                hovertemplate="%{x}: %{y:.0f}%<extra>Score</extra>")
+    fig.update_layout(title=f"Accuracy by Topic ({qset})",
+                      yaxis=dict(range=[0, 105], title="%"),
+                      height=320, margin=dict(t=40, b=10, l=10, r=10))
+    st.plotly_chart(fig, width="stretch")
+
+    st.dataframe(
+        df[["Week", "Questions", "Answered", "Correct", "Score %"]],
+        hide_index=True, width="stretch",
+        column_config={"Score %": st.column_config.ProgressColumn(
+            "Score", min_value=0, max_value=100, format="%.0f%%")},
+    )
     df = pd.DataFrame(rows)
 
     fig = go.Figure()
@@ -1055,16 +1110,9 @@ def main() -> None:
                  "Final Boss 💀: all 219 questions from 2025 & 2026 combined!",
         )
 
-        # Automatically reshuffle every time Final Boss mode is opened
+        # Automatically track active mode
         if mode_label == "Final Boss 💀":
-            if st.session_state.get("active_mode") != "Final Boss 💀":
-                is_in_exam = (
-                    st.session_state.boss_exam.get("started_at") is not None
-                    and not st.session_state.boss_exam.get("submitted", False)
-                )
-                if not is_in_exam:
-                    reshuffle_boss()
-                st.session_state["active_mode"] = "Final Boss 💀"
+            st.session_state["active_mode"] = "Final Boss 💀"
         else:
             st.session_state["active_mode"] = mode_label
 
@@ -1072,10 +1120,10 @@ def main() -> None:
             boss_style_label = st.radio(
                 "Boss Style",
                 ["Practice", "Exam"],
-                format_func=lambda opt: f"Exam ({get_boss_exam_minutes(st.session_state.get('boss_year_choice', 'Both'))} mins)" if opt == "Exam" else "Practice (Untimed)",
+                format_func=lambda opt: f"Exam ({BOSS_EXAM_MINUTES} mins)" if opt == "Exam" else "Practice (Untimed)",
                 horizontal=True,
                 key="boss_style_choice",
-                help="Practice: check as you go. Exam: timed test submitted at the end.",
+                help=f"Practice: check as you go. Exam: {BOSS_EXAM_MINUTES}-minute timed test submitted at the end.",
             )
             boss_style = PRACTICE if boss_style_label == "Practice" else EXAM
 
@@ -1089,27 +1137,15 @@ def main() -> None:
                 ),
                 horizontal=False,
                 key="boss_year_choice",
-                help="Choose questions from 2026, 2025, or both years combined.",
+                help="Choose questions from 2026, 2025, or both years combined. Each set tracks its own progress and statistics independently.",
             )
 
-            # Detect year filter change and reset index & timer if changed
-            if st.session_state.get("prev_boss_year") != boss_year_choice:
-                st.session_state["prev_boss_year"] = boss_year_choice
-                st.session_state.boss_idx = 0
-                reshuffle_boss()
-                st.session_state.boss_exam = {
-                    "started_at": None,
-                    "deadline": None,
-                    "submitted": False,
-                    "timed_out": False,
-                }
+            bstate = get_boss_state(boss_year_choice)
 
-            boss_exam_minutes = get_boss_exam_minutes(boss_year_choice)
-            hrs_text = "3 hours" if boss_exam_minutes == 180 else "1.5 hours"
             if boss_style == EXAM:
-                st.info(f"⏱️ **Exam Duration**: **{boss_exam_minutes} minutes** ({hrs_text})")
+                st.info(f"⏱️ **Exam Duration**: **{BOSS_EXAM_MINUTES} minutes** (3 hours)")
             else:
-                st.caption(f"⏱️ Exam mode duration for this set: **{boss_exam_minutes} minutes**")
+                st.caption(f"⏱️ Exam mode duration for this set: **{BOSS_EXAM_MINUTES} minutes**")
 
             qs = get_boss_questions(boss_year_choice)
 
@@ -1117,12 +1153,12 @@ def main() -> None:
             set_name = "2025 & 2026" if boss_year_choice == "Both" else boss_year_choice
             st.markdown(f"**💀 Final Boss Progress ({set_name})**")
             if boss_style == PRACTICE:
-                n_done = sum(1 for q in qs if q["id"] in st.session_state.boss_checked)
+                n_done = len([q for q in qs if q["id"] in bstate["checked"]])
             else:
-                n_done = sum(bool(response(EXAM, q, is_boss=True)) for q in qs)
+                n_done = sum(bool(response(EXAM, q, is_boss=True, qset=boss_year_choice)) for q in qs)
             st.progress(n_done / len(qs), text=f"{n_done} of {len(qs)} answered")
             st.divider()
-            st.button("Reset Final Boss", on_click=reset_boss, width="stretch")
+            st.button(f"Reset Final Boss ({boss_year_choice})", on_click=reset_boss, args=(boss_year_choice,), width="stretch")
         else:
             year = st.radio("Question set", YEARS, horizontal=True, key="year",
                             help="Each year's questions, scores and history are kept separate.")
@@ -1174,20 +1210,20 @@ def main() -> None:
             else "2025"
         )
         if boss_style == EXAM:
-            st.title(f"💀 Final Boss Exam — {boss_exam_minutes} Minutes ({len(qs)} Questions)", anchor=False)
-            st.caption(f"⏱️ Fixed Duration: **{boss_exam_minutes} minutes ({hrs_text})** • Covering all 12 weeks of {year_desc}")
+            st.title(f"💀 Final Boss Exam — {BOSS_EXAM_MINUTES} Minutes ({len(qs)} Questions)", anchor=False)
+            st.caption(f"⏱️ Fixed Duration: **{BOSS_EXAM_MINUTES} minutes (3 hours)** • Covering all 12 weeks of {year_desc}")
         else:
             st.title(f"💀 Final Boss: {len(qs)} Questions ({year_desc})", anchor=False)
-            st.caption(f"The complete gauntlet covering all 12 weeks of {year_desc} (Exam duration: {boss_exam_minutes} mins)")
+            st.caption(f"The complete gauntlet covering all 12 weeks of {year_desc} (Exam duration: {BOSS_EXAM_MINUTES} mins)")
         tab_boss, tab_stats = st.tabs(["⚔️ Boss Battle", "📊 Boss Stats"])
         with tab_boss:
-            render_boss_shuffle_controls(boss_style, boss_exam_minutes, len(qs), year_desc)
+            render_boss_shuffle_controls(boss_style, BOSS_EXAM_MINUTES, len(qs), year_desc, qset=boss_year_choice)
             if boss_style == PRACTICE:
-                boss_practice_view(qs)
+                boss_practice_view(qs, qset=boss_year_choice)
             else:
-                boss_exam_view(qs, boss_exam_minutes)
+                boss_exam_view(qs, BOSS_EXAM_MINUTES, qset=boss_year_choice)
         with tab_stats:
-            boss_stats_view(qs, boss_style)
+            boss_stats_view(qs, boss_style, qset=boss_year_choice)
     else:
         st.title(f"Week {week}: {WEEKS[year][week]['title']}", anchor=False)
         st.caption(BANKS[year].get("source", ""))
