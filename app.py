@@ -689,7 +689,12 @@ def reset_boss() -> None:
     ss.boss_graded = {}
     ss.boss_checked = set()
     ss.boss_flash = {}
-    ss.boss_exam = {"started_at": None, "deadline": None, "submitted": False, "timed_out": False}
+    ss.boss_exam = {
+        "started_at": None,
+        "deadline": None,
+        "submitted": False,
+        "timed_out": False,
+    }
     ss.boss_nonce += 1
     ss.boss_seed = random.randint(1, 1_000_000)
     ss.boss_idx = 0
@@ -706,8 +711,9 @@ def check_boss_practice(q: dict) -> None:
 
 def start_boss_exam() -> None:
     s = st.session_state.boss_exam
-    s["started_at"] = time.time()
-    s["deadline"] = s["started_at"] + BOSS_EXAM_SECONDS
+    now = time.time()
+    s["started_at"] = now
+    s["deadline"] = now + BOSS_EXAM_SECONDS
     s["submitted"] = False
     s["timed_out"] = False
 
@@ -727,28 +733,48 @@ def submit_boss_exam(timed_out: bool = False) -> None:
 @st.fragment(run_every=1)
 def boss_countdown() -> None:
     s = st.session_state.boss_exam
-    if s["submitted"] or s["deadline"] is None:
+    if s.get("submitted"):
         return
-    remaining = s["deadline"] - time.time()
+    now = time.time()
+    if s.get("started_at") is None:
+        s["started_at"] = now
+        s["deadline"] = now + BOSS_EXAM_SECONDS
+    elif s.get("deadline") is None:
+        s["deadline"] = s["started_at"] + BOSS_EXAM_SECONDS
+
+    remaining = max(0.0, s["deadline"] - now)
     if remaining <= 0:
         submit_boss_exam(timed_out=True)
         st.rerun()
     hours, rem = divmod(int(remaining), 3600)
     mins, secs = divmod(rem, 60)
-    st.progress(max(0.0, remaining / BOSS_EXAM_SECONDS), text=f"⏱️ Time left: {hours:02d}h {mins:02d}m {secs:02d}s")
+    frac = min(1.0, max(0.0, remaining / BOSS_EXAM_SECONDS))
+
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        st.metric(label="⏱️ Total Duration", value=f"{BOSS_EXAM_MINUTES} mins", help="Total time limit: 180 minutes (3 hours)")
+    with col_t2:
+        st.metric(label="⏳ Time Remaining", value=f"{hours:02d}h {mins:02d}m {secs:02d}s")
+    st.progress(frac, text=f"⏱️ Time left: {hours:02d}h {mins:02d}m {secs:02d}s (of {BOSS_EXAM_MINUTES} mins)")
 
 
-def render_boss_shuffle_controls() -> None:
+def render_boss_shuffle_controls(boss_style: str = PRACTICE) -> None:
     is_exam_running = (
-        st.session_state.boss_exam["started_at"] is not None
-        and not st.session_state.boss_exam["submitted"]
+        st.session_state.boss_exam.get("started_at") is not None
+        and not st.session_state.boss_exam.get("submitted", False)
     )
     with st.container(border=True):
         c1, c2 = st.columns([3, 1])
         with c1:
-            st.markdown(
-                "🔀 **Gauntlet mode active**: All 219 questions and their options are randomly shuffled."
-            )
+            if boss_style == EXAM:
+                st.markdown(
+                    f"🔀 **Gauntlet Exam Active**: All 219 questions & options are shuffled. "
+                    f"⏱️ **Duration**: **{BOSS_EXAM_MINUTES} minutes** (3 hours)."
+                )
+            else:
+                st.markdown(
+                    "🔀 **Gauntlet Mode Active**: All 219 questions and their options are randomly shuffled."
+                )
         with c2:
             if st.button("🎲 Reshuffle", key="reshuffle_boss",
                          help="Generate a new random shuffle for the Boss fight", width="stretch",
@@ -866,23 +892,25 @@ def boss_practice_view(qs: list[dict]) -> None:
 def boss_exam_view(qs: list[dict]) -> None:
     s = st.session_state.boss_exam
 
-    # 1) Not started
-    if s["started_at"] is None:
-        with st.container(border=True):
-            st.markdown("### 💀 Final Boss: The 219-Question Exam")
-            st.markdown(
-                f"Face **all {len(qs)} questions** from both 2025 and 2026. "
-                f"Time limit: **{BOSS_EXAM_MINUTES} minutes** (3 hours). "
-                "Answers remain hidden until you submit at the end. Unanswered questions count as incorrect."
-            )
-            st.button(f"🔥 Start Final Boss Exam ({BOSS_EXAM_MINUTES} mins)", type="primary", on_click=start_boss_exam)
-        return
+    # Ensure timer is active with the full 180 mins duration
+    if s.get("started_at") is None:
+        now = time.time()
+        s["started_at"] = now
+        s["deadline"] = now + BOSS_EXAM_SECONDS
+        s["submitted"] = False
+        s["timed_out"] = False
+    elif s.get("deadline") is None:
+        s["deadline"] = s["started_at"] + BOSS_EXAM_SECONDS
 
-    # 2) In progress
+    # 1) In progress
     if not s["submitted"]:
-        boss_countdown()
         answered = sum(bool(response(EXAM, q, is_boss=True)) for q in qs)
-        st.caption(f"📝 {answered} of {len(qs)} questions answered")
+
+        c1, c2 = st.columns(2)
+        c1.metric("Total Questions", len(qs))
+        c2.metric("Questions Answered", f"{answered} / {len(qs)}")
+
+        boss_countdown()
 
         render_boss_navigator(qs, EXAM)
         render_boss_stepper(qs)
@@ -913,18 +941,18 @@ def boss_exam_view(qs: list[dict]) -> None:
                 st.rerun()
         return
 
-    # 3) Submitted
+    # 2) Submitted
     correct = sum(st.session_state.boss_graded.get(q["id"], {}).get("correct", False) for q in qs)
     unanswered = sum(not response(EXAM, q, is_boss=True) for q in qs)
     secs = int(s["submitted_at"] - s["started_at"])
     if s["timed_out"]:
-        st.warning("⏱️ Time ran out, so your exam was submitted automatically.")
+        st.warning(f"⏱️ Time ran out ({BOSS_EXAM_MINUTES} minutes reached), so your exam was submitted automatically.")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Final Score", f"{100 * correct / len(qs):.1f}%")
     c2.metric("Correct", f"{correct}/{len(qs)}")
     c3.metric("Incorrect", len(qs) - correct - unanswered)
-    c4.metric("Time taken", f"{secs // 3600}h {(secs % 3600) // 60}m {secs % 60:02d}s")
+    c4.metric("Time Taken", f"{secs // 3600}h {(secs % 3600) // 60}m {secs % 60:02d}s (Limit: {BOSS_EXAM_MINUTES}m)")
 
     st.subheader("Exam Review")
     render_boss_navigator(qs, EXAM)
@@ -1025,13 +1053,16 @@ def main() -> None:
             boss_style_label = st.radio(
                 "Boss Style",
                 ["Practice", "Exam"],
+                format_func=lambda opt: f"Exam ({BOSS_EXAM_MINUTES} mins)" if opt == "Exam" else "Practice (Untimed)",
                 horizontal=True,
                 key="boss_style_choice",
                 help=f"Practice: check as you go. Exam: {BOSS_EXAM_MINUTES}-minute timed test submitted at the end.",
             )
             boss_style = PRACTICE if boss_style_label == "Practice" else EXAM
             if boss_style == EXAM:
-                st.caption(f"⏱️ **Exam duration**: {BOSS_EXAM_MINUTES} minutes (3 hours)")
+                st.info(f"⏱️ **Exam Duration**: **{BOSS_EXAM_MINUTES} minutes** (3 hours)")
+            else:
+                st.caption(f"⏱️ Final Boss Exam mode duration: **{BOSS_EXAM_MINUTES} minutes**")
 
             st.divider()
             st.markdown("**💀 Final Boss Progress**")
@@ -1059,9 +1090,12 @@ def main() -> None:
             mode = PRACTICE if mode_label == "Practice" else EXAM
             timed = True
             if mode == EXAM:
+                mins = len(WEEKS[year][week]["questions"]) * SECONDS_PER_QUESTION // 60
                 timed = st.toggle("Time limit", value=True,
                                   help=f"{SECONDS_PER_QUESTION} seconds per question.",
                                   disabled=exam_state(year, week)["started_at"] is not None)
+                if timed:
+                    st.caption(f"⏱️ **Exam duration**: {mins} minutes ({SECONDS_PER_QUESTION}s per question)")
 
             st.divider()
             done, _ = year_answered(year)
@@ -1084,11 +1118,15 @@ def main() -> None:
                 st.button(f"Yes, reset {year}", type="primary", on_click=reset_year, args=(year,))
 
     if mode_label == "Final Boss 💀":
-        st.title("💀 Final Boss: 219 Questions (2025 & 2026)", anchor=False)
-        st.caption("The complete gauntlet covering all 12 weeks of Reinforcement Learning assignments (Prof. B. Ravindran)")
+        if boss_style == EXAM:
+            st.title(f"💀 Final Boss Exam — {BOSS_EXAM_MINUTES} Minutes (219 Questions)", anchor=False)
+            st.caption(f"⏱️ Fixed Duration: **{BOSS_EXAM_MINUTES} minutes (3 hours)** • Covering all 12 weeks of 2025 & 2026")
+        else:
+            st.title("💀 Final Boss: 219 Questions (2025 & 2026)", anchor=False)
+            st.caption(f"The complete gauntlet covering all 12 weeks of Reinforcement Learning assignments (Exam duration: {BOSS_EXAM_MINUTES} mins)")
         tab_boss, tab_stats = st.tabs(["⚔️ Boss Battle", "📊 Boss Stats"])
         with tab_boss:
-            render_boss_shuffle_controls()
+            render_boss_shuffle_controls(boss_style)
             qs = get_boss_questions()
             if boss_style == PRACTICE:
                 boss_practice_view(qs)
