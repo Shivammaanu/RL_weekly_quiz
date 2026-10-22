@@ -11,9 +11,10 @@ A Streamlit quiz app built from the weekly Reinforcement Learning assignment sol
 
 - **Question set switch** (2026 / 2025) at the top of the sidebar. Each year has its own progress, scores, exam timers and attempt history; nothing is shared between years.
 - **Week selector** in the sidebar, with each week's status (not started, in progress, complete).
-- **Final Boss 💀 mode**: the ultimate challenge combining all 219 questions from both 2025 and 2026 across all 12 weeks into a single mixed gauntlet.
+- **Final Boss 💀 mode**: the ultimate challenge combining all questions from 2025 and 2026 across all 12 weeks into a mixed gauntlet.
+  - **Question Set filter**: choose between **Both (2025 & 2026 — 219 Qs)**, **Only 2026 (113 Qs)**, or **Only 2025 (106 Qs)**.
   - Automatically reshuffles all questions and options on every opening of the mode (always enabled, cannot be disabled).
-  - Supports both **Practice** (instant feedback & explanations) and **Exam** (fixed **180-minute duration** (3 hours) with live countdown and submit review) styles.
+  - Supports both **Practice** (instant feedback & explanations) and **Exam** (fixed duration: **180 minutes** (3 hours) for all question sets, with live countdown and submit review) styles.
   - Features **card-by-card presentation** (one question at a time) with Previous / Next navigation.
   - Interactive **Question Navigator Grid** color-coded by question status to jump directly to any question.
   - Comprehensive **Boss Stats** dashboard analyzing performance across each of the 12 course topics.
