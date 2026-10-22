@@ -26,7 +26,7 @@ st.set_page_config(page_title="RL Weekly Quiz", page_icon="🧠", layout="wide")
 APP_DIR = Path(__file__).parent
 DATA_DIR = APP_DIR / "questions"
 SECONDS_PER_QUESTION = 90          # exam time budget per question
-PRACTICE, EXAM = "practice", "exam"
+PRACTICE, EXAM, BOSS = "practice", "exam", "Final Boss 💀"
 
 CSS = """
 <style>
@@ -82,6 +82,7 @@ BANKS = load_banks()
 YEARS = sorted(BANKS, reverse=True)              # newest first
 WEEKS: dict[int, dict[int, dict]] = {y: {w["week"]: w for w in BANKS[y]["weeks"]} for y in YEARS}
 YEAR_TOTAL = {y: sum(len(w["questions"]) for w in BANKS[y]["weeks"]) for y in YEARS}
+ALL_QUESTIONS: list[dict] = [q for y in sorted(BANKS) for w in BANKS[y]["weeks"] for q in w["questions"]]
 
 
 def wkey(year: int, week: int) -> str:
@@ -109,6 +110,16 @@ def init_state() -> None:
     ss.setdefault("shuffle_questions", True)  # default ON as requested
     ss.setdefault("shuffle_options", True)    # default ON as requested
     ss.setdefault("shuffle_seed", {})         # "year-week" -> int seed
+    # Final Boss 💀 state
+    ss.setdefault("boss_style", PRACTICE)
+    ss.setdefault("boss_idx", 0)
+    ss.setdefault("boss_seed", random.randint(1, 1_000_000))
+    ss.setdefault("boss_nonce", 0)
+    ss.setdefault("boss_responses", {PRACTICE: {}, EXAM: {}})
+    ss.setdefault("boss_graded", {})
+    ss.setdefault("boss_checked", set())
+    ss.setdefault("boss_flash", {})
+    ss.setdefault("boss_exam", {"started_at": None, "deadline": None, "submitted": False, "timed_out": False})
 
 
 def ensure_shuffle_seed(year: int, week: int) -> int:
@@ -135,13 +146,13 @@ def get_week_questions(year: int, week: int) -> list[dict]:
     return shuffled
 
 
-def get_option_mapping(q: dict) -> tuple[dict[str, str], dict[str, str]]:
+def get_option_mapping(q: dict, is_boss: bool = False) -> tuple[dict[str, str], dict[str, str]]:
     """Returns (new_to_orig, orig_to_new) letter mappings."""
     orig_keys = list(q["options"].keys())
     if not st.session_state.get("shuffle_options", True):
         identity = {k: k for k in orig_keys}
         return identity, identity
-    seed = ensure_shuffle_seed(q["year"], q["week"])
+    seed = st.session_state.boss_seed if is_boss else ensure_shuffle_seed(q["year"], q["week"])
     q_seed = stable_seed(seed, q["id"], "options")
     rng = random.Random(q_seed)
     shuffled_orig_keys = list(orig_keys)
@@ -151,8 +162,8 @@ def get_option_mapping(q: dict) -> tuple[dict[str, str], dict[str, str]]:
     return new_to_orig, orig_to_new
 
 
-def get_display_question(q: dict) -> dict:
-    new_to_orig, orig_to_new = get_option_mapping(q)
+def get_display_question(q: dict, is_boss: bool = False) -> dict:
+    new_to_orig, orig_to_new = get_option_mapping(q, is_boss=is_boss)
     orig_keys = list(q["options"].keys())
     disp_options = {new_k: q["options"][new_to_orig[new_k]] for new_k in orig_keys}
     disp_correct = sorted([orig_to_new[k] for k in q["correct_answer"]])
@@ -170,17 +181,24 @@ def exam_state(year: int, week: int) -> dict:
     )
 
 
-def widget_key(mode: str, q: dict, letter: str | None = None) -> str:
-    k = wkey(q["year"], q["week"])
-    n = st.session_state.nonce.get(k, 0)
-    shuf_opt = 1 if st.session_state.get("shuffle_options", True) else 0
-    seed = st.session_state.shuffle_seed.get(k, 0)
-    base = f"{mode}:{n}:{shuf_opt}:{seed}:{q['id']}"
+def widget_key(mode: str, q: dict, letter: str | None = None, is_boss: bool = False) -> str:
+    if is_boss:
+        n = st.session_state.boss_nonce
+        shuf_opt = 1 if st.session_state.get("shuffle_options", True) else 0
+        seed = st.session_state.boss_seed
+        base = f"boss:{mode}:{n}:{shuf_opt}:{seed}:{q['id']}"
+    else:
+        k = wkey(q["year"], q["week"])
+        n = st.session_state.nonce.get(k, 0)
+        shuf_opt = 1 if st.session_state.get("shuffle_options", True) else 0
+        seed = st.session_state.shuffle_seed.get(k, 0)
+        base = f"{mode}:{n}:{shuf_opt}:{seed}:{q['id']}"
     return f"{base}:{letter}" if letter else base
 
 
-def response(mode: str, q: dict) -> list[str]:
-    return st.session_state.responses[mode].get(q["id"], [])
+def response(mode: str, q: dict, is_boss: bool = False) -> list[str]:
+    d = st.session_state.boss_responses[mode] if is_boss else st.session_state.responses[mode]
+    return d.get(q["id"], [])
 
 
 def is_correct(resp: list[str], q: dict) -> bool:
@@ -218,22 +236,24 @@ def week_status_icon(year: int, week: int) -> str:
 # --------------------------------------------------------------------------------------
 # Callbacks (run before the next script rerun)
 # --------------------------------------------------------------------------------------
-def save_single(mode: str, q: dict, disp_q: dict) -> None:
-    val = st.session_state.get(widget_key(mode, q))
+def save_single(mode: str, q: dict, disp_q: dict, is_boss: bool = False) -> None:
+    val = st.session_state.get(widget_key(mode, q, is_boss=is_boss))
+    target = st.session_state.boss_responses[mode] if is_boss else st.session_state.responses[mode]
     if val:
         orig_val = disp_q["_new_to_orig"].get(val, val)
-        st.session_state.responses[mode][q["id"]] = [orig_val]
+        target[q["id"]] = [orig_val]
     else:
-        st.session_state.responses[mode][q["id"]] = []
+        target[q["id"]] = []
 
 
-def save_multi(mode: str, q: dict, disp_q: dict) -> None:
+def save_multi(mode: str, q: dict, disp_q: dict, is_boss: bool = False) -> None:
     chosen = []
     for disp_L in disp_q["options"]:
         orig_L = disp_q["_new_to_orig"][disp_L]
-        if st.session_state.get(widget_key(mode, q, orig_L)):
+        if st.session_state.get(widget_key(mode, q, orig_L, is_boss=is_boss)):
             chosen.append(orig_L)
-    st.session_state.responses[mode][q["id"]] = chosen
+    target = st.session_state.boss_responses[mode] if is_boss else st.session_state.responses[mode]
+    target[q["id"]] = chosen
 
 
 def check_practice(q: dict) -> None:
@@ -322,8 +342,8 @@ def fmt_letters(letters: list[str]) -> str:
     return ", ".join(letters) if letters else "—"
 
 
-def render_inputs(mode: str, q: dict, disp_q: dict, disabled: bool) -> None:
-    saved = response(mode, q)
+def render_inputs(mode: str, q: dict, disp_q: dict, disabled: bool, is_boss: bool = False) -> None:
+    saved = response(mode, q, is_boss=is_boss)
     orig_to_new = disp_q["_orig_to_new"]
     disp_saved = [orig_to_new[k] for k in saved if k in orig_to_new]
     if disp_q["type"] == "single":
@@ -333,9 +353,9 @@ def render_inputs(mode: str, q: dict, disp_q: dict, disabled: bool) -> None:
             options=letters,
             index=letters.index(disp_saved[0]) if disp_saved else None,
             format_func=lambda L: f"**{L}.** {disp_q['options'][L]}",
-            key=widget_key(mode, q),
+            key=widget_key(mode, q, is_boss=is_boss),
             on_change=save_single,
-            args=(mode, q, disp_q),
+            args=(mode, q, disp_q, is_boss),
             disabled=disabled,
             label_visibility="collapsed",
         )
@@ -345,9 +365,9 @@ def render_inputs(mode: str, q: dict, disp_q: dict, disabled: bool) -> None:
             st.checkbox(
                 f"**{disp_L}.** {text}",
                 value=orig_L in saved,
-                key=widget_key(mode, q, orig_L),
+                key=widget_key(mode, q, orig_L, is_boss=is_boss),
                 on_change=save_multi,
-                args=(mode, q, disp_q),
+                args=(mode, q, disp_q, is_boss),
                 disabled=disabled,
             )
 
@@ -646,6 +666,341 @@ def dashboard_view(year: int) -> None:
 
 
 # --------------------------------------------------------------------------------------
+# Final Boss 💀 Mode
+# --------------------------------------------------------------------------------------
+def get_boss_questions() -> list[dict]:
+    if not st.session_state.get("shuffle_questions", True):
+        return list(ALL_QUESTIONS)
+    rng = random.Random(st.session_state.boss_seed)
+    shuffled = list(ALL_QUESTIONS)
+    rng.shuffle(shuffled)
+    return shuffled
+
+
+def reshuffle_boss() -> None:
+    st.session_state.boss_seed = random.randint(1, 1_000_000)
+    st.session_state.boss_nonce += 1
+    st.session_state.boss_idx = 0
+
+
+def reset_boss() -> None:
+    ss = st.session_state
+    ss.boss_responses = {PRACTICE: {}, EXAM: {}}
+    ss.boss_graded = {}
+    ss.boss_checked = set()
+    ss.boss_flash = {}
+    ss.boss_exam = {"started_at": None, "deadline": None, "submitted": False, "timed_out": False}
+    ss.boss_nonce += 1
+    ss.boss_seed = random.randint(1, 1_000_000)
+    ss.boss_idx = 0
+
+
+def check_boss_practice(q: dict) -> None:
+    resp = response(PRACTICE, q, is_boss=True)
+    if not resp:
+        st.session_state.boss_flash[q["id"]] = "Choose an answer before checking."
+        return
+    st.session_state.boss_checked.add(q["id"])
+    st.session_state.boss_graded[q["id"]] = {"correct": is_correct(resp, q), "mode": PRACTICE}
+
+
+def start_boss_exam(timed: bool) -> None:
+    s = st.session_state.boss_exam
+    n = len(ALL_QUESTIONS)
+    s["started_at"] = time.time()
+    s["deadline"] = s["started_at"] + n * SECONDS_PER_QUESTION if timed else None
+    s["submitted"] = False
+    s["timed_out"] = False
+
+
+def submit_boss_exam(timed_out: bool = False) -> None:
+    s = st.session_state.boss_exam
+    if s["submitted"]:
+        return
+    for q in ALL_QUESTIONS:
+        ok = is_correct(response(EXAM, q, is_boss=True), q)
+        st.session_state.boss_graded[q["id"]] = {"correct": ok, "mode": EXAM}
+    s["submitted"] = True
+    s["timed_out"] = timed_out
+    s["submitted_at"] = time.time()
+
+
+@st.fragment(run_every=1)
+def boss_countdown() -> None:
+    s = st.session_state.boss_exam
+    if s["submitted"] or s["deadline"] is None:
+        return
+    remaining = s["deadline"] - time.time()
+    if remaining <= 0:
+        submit_boss_exam(timed_out=True)
+        st.rerun()
+    total = s["deadline"] - s["started_at"]
+    hours, rem = divmod(int(remaining), 3600)
+    mins, secs = divmod(rem, 60)
+    st.progress(max(0.0, remaining / total), text=f"⏱️ Time left: {hours:02d}h {mins:02d}m {secs:02d}s")
+
+
+def render_boss_shuffle_controls() -> None:
+    is_exam_running = (
+        st.session_state.boss_exam["started_at"] is not None
+        and not st.session_state.boss_exam["submitted"]
+    )
+    with st.container(border=True):
+        c1, c2, c3 = st.columns([1.5, 1.5, 1.0])
+        with c1:
+            st.toggle(
+                "🔀 Shuffle questions",
+                key="shuffle_questions",
+                help="Randomizes all 219 questions into a mixed gauntlet.",
+            )
+        with c2:
+            st.toggle(
+                "🔀 Shuffle options",
+                key="shuffle_options",
+                help="Randomizes choice order (A, B, C, D) inside each question.",
+            )
+        with c3:
+            if st.button("🎲 Reshuffle", key="reshuffle_boss",
+                         help="Generate a new random shuffle for the Boss fight", width="stretch",
+                         disabled=is_exam_running):
+                reshuffle_boss()
+                st.rerun()
+
+
+def render_boss_navigator(qs: list[dict], mode: str) -> None:
+    curr_idx = min(st.session_state.boss_idx, len(qs) - 1)
+    total = len(qs)
+    with st.expander(f"🗺️ Question Navigator Grid (Question {curr_idx + 1} of {total})", expanded=False):
+        ranges = [
+            ("1–50", 0, 50),
+            ("51–100", 50, 100),
+            ("101–150", 100, 150),
+            ("151–200", 150, 200),
+            ("201–219", 200, total),
+        ]
+        nav_tabs = st.tabs([r[0] for r in ranges])
+        for tab, (_, start, end) in zip(nav_tabs, ranges):
+            with tab:
+                cols = st.columns(10)
+                for i in range(start, min(end, total)):
+                    q = qs[i]
+                    col = cols[(i - start) % 10]
+                    is_curr = (i == curr_idx)
+                    if mode == PRACTICE:
+                        checked = q["id"] in st.session_state.boss_checked
+                        if checked:
+                            corr = st.session_state.boss_graded.get(q["id"], {}).get("correct", False)
+                            badge = "✅" if corr else "❌"
+                        else:
+                            badge = "👉" if is_curr else ""
+                    else:
+                        if st.session_state.boss_exam["submitted"]:
+                            corr = st.session_state.boss_graded.get(q["id"], {}).get("correct", False)
+                            badge = "✅" if corr else ("⚪" if not response(EXAM, q, is_boss=True) else "❌")
+                        else:
+                            has_ans = bool(response(EXAM, q, is_boss=True))
+                            badge = "👉" if is_curr else ("●" if has_ans else "")
+                    lbl = f"{badge} {i + 1}" if badge else f"{i + 1}"
+                    if col.button(lbl, key=f"bnav_{i}_{q['id']}", width="stretch",
+                                  type="primary" if is_curr else "secondary"):
+                        st.session_state.boss_idx = i
+                        st.rerun()
+
+
+def render_boss_stepper(qs: list[dict]) -> None:
+    curr_idx = min(st.session_state.boss_idx, len(qs) - 1)
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c1:
+        if st.button("⬅️ Previous", key=f"boss_prev_top_{curr_idx}", disabled=curr_idx <= 0, width="stretch"):
+            st.session_state.boss_idx -= 1
+            st.rerun()
+    with c2:
+        st.markdown(
+            f"<div style='text-align: center; padding-top: 0.4rem; font-weight: 600; font-size: 1.05rem;'>"
+            f"Question {curr_idx + 1} of {len(qs)}</div>",
+            unsafe_allow_html=True,
+        )
+    with c3:
+        if st.button("Next ➡️", key=f"boss_next_top_{curr_idx}", disabled=curr_idx >= len(qs) - 1, width="stretch"):
+            st.session_state.boss_idx += 1
+            st.rerun()
+
+
+def boss_practice_view(qs: list[dict]) -> None:
+    curr_idx = min(st.session_state.boss_idx, len(qs) - 1)
+    q = qs[curr_idx]
+    disp_q = get_display_question(q, is_boss=True)
+
+    n_checked = len(st.session_state.boss_checked)
+    n_correct = sum(st.session_state.boss_graded.get(k, {}).get("correct", False) for k in st.session_state.boss_checked)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total questions", len(qs))
+    c2.metric("Checked", f"{n_checked}/{len(qs)}")
+    c3.metric("Correct", n_correct)
+    c4.metric("Accuracy", f"{100 * n_correct / n_checked:.0f}%" if n_checked else "—")
+
+    render_boss_navigator(qs, PRACTICE)
+    render_boss_stepper(qs)
+
+    checked = q["id"] in st.session_state.boss_checked
+    with st.container(border=True):
+        st.caption(f"**From {q['year']} Week {q['week']}**")
+        question_header(disp_q, curr_idx + 1, len(qs))
+        render_inputs(PRACTICE, q, disp_q, disabled=checked, is_boss=True)
+        if checked:
+            saved = response(PRACTICE, q, is_boss=True)
+            disp_saved = [disp_q["_orig_to_new"][k] for k in saved if k in disp_q["_orig_to_new"]]
+            render_feedback(disp_q, disp_saved)
+            render_explanation(disp_q, expanded=True)
+        else:
+            st.button("Check answer", key=f"boss_check:{widget_key(PRACTICE, q, is_boss=True)}",
+                      on_click=check_boss_practice, args=(q,))
+            msg = st.session_state.boss_flash.pop(q["id"], None)
+            if msg:
+                st.warning(msg)
+
+    c_prev, _, c_next = st.columns([1, 2, 1])
+    with c_prev:
+        if st.button("⬅️ Previous", key="boss_prev_bot", disabled=curr_idx <= 0, width="stretch"):
+            st.session_state.boss_idx -= 1
+            st.rerun()
+    with c_next:
+        if curr_idx < len(qs) - 1:
+            if st.button("Next Question ➡️", key="boss_next_bot", type="primary", width="stretch"):
+                st.session_state.boss_idx += 1
+                st.rerun()
+        else:
+            st.success("🎉 You've reached the final question of the gauntlet!")
+
+
+def boss_exam_view(qs: list[dict], timed: bool) -> None:
+    s = st.session_state.boss_exam
+
+    # 1) Not started
+    if s["started_at"] is None:
+        with st.container(border=True):
+            st.markdown("### 💀 Final Boss: The 219-Question Exam")
+            limit = f"{len(qs) * SECONDS_PER_QUESTION // 60} minutes (~5.5 hours)" if timed else "no time limit"
+            st.markdown(
+                f"Face **all {len(qs)} questions** from both 2025 and 2026. Time budget: {limit}. "
+                "Answers remain hidden until you submit at the end. Unanswered questions count as incorrect."
+            )
+            st.button("🔥 Start Final Boss Exam", type="primary", on_click=start_boss_exam, args=(timed,))
+        return
+
+    # 2) In progress
+    if not s["submitted"]:
+        if timed:
+            boss_countdown()
+        answered = sum(bool(response(EXAM, q, is_boss=True)) for q in qs)
+        st.caption(f"📝 {answered} of {len(qs)} questions answered")
+
+        render_boss_navigator(qs, EXAM)
+        render_boss_stepper(qs)
+
+        curr_idx = min(st.session_state.boss_idx, len(qs) - 1)
+        q = qs[curr_idx]
+        disp_q = get_display_question(q, is_boss=True)
+
+        with st.container(border=True):
+            st.caption(f"**From {q['year']} Week {q['week']}**")
+            question_header(disp_q, curr_idx + 1, len(qs))
+            render_inputs(EXAM, q, disp_q, disabled=False, is_boss=True)
+
+        c_prev, c_sub, c_next = st.columns([1, 1.5, 1])
+        with c_prev:
+            if st.button("⬅️ Previous", key="boss_ex_prev", disabled=curr_idx <= 0, width="stretch"):
+                st.session_state.boss_idx -= 1
+                st.rerun()
+        with c_sub:
+            with st.popover("🏁 Submit Exam", width="stretch"):
+                st.write(f"You have answered **{answered} of {len(qs)}** questions.")
+                if answered < len(qs):
+                    st.warning(f"⚠️ {len(qs) - answered} questions are unanswered!")
+                st.button("Yes, Submit Exam", type="primary", on_click=submit_boss_exam, width="stretch")
+        with c_next:
+            if st.button("Next ➡️", key="boss_ex_next", disabled=curr_idx >= len(qs) - 1, width="stretch"):
+                st.session_state.boss_idx += 1
+                st.rerun()
+        return
+
+    # 3) Submitted
+    correct = sum(st.session_state.boss_graded.get(q["id"], {}).get("correct", False) for q in qs)
+    unanswered = sum(not response(EXAM, q, is_boss=True) for q in qs)
+    secs = int(s["submitted_at"] - s["started_at"])
+    if s["timed_out"]:
+        st.warning("⏱️ Time ran out, so your exam was submitted automatically.")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Final Score", f"{100 * correct / len(qs):.1f}%")
+    c2.metric("Correct", f"{correct}/{len(qs)}")
+    c3.metric("Incorrect", len(qs) - correct - unanswered)
+    c4.metric("Time taken", f"{secs // 3600}h {(secs % 3600) // 60}m {secs % 60:02d}s")
+
+    st.subheader("Exam Review")
+    render_boss_navigator(qs, EXAM)
+    render_boss_stepper(qs)
+
+    curr_idx = min(st.session_state.boss_idx, len(qs) - 1)
+    q = qs[curr_idx]
+    disp_q = get_display_question(q, is_boss=True)
+    resp = response(EXAM, q, is_boss=True)
+
+    with st.container(border=True):
+        st.caption(f"**From {q['year']} Week {q['week']}**")
+        question_header(disp_q, curr_idx + 1, len(qs))
+        for disp_L, text in disp_q["options"].items():
+            orig_L = disp_q["_new_to_orig"][disp_L]
+            mark = "✅" if orig_L in q["correct_answer"] else ("❌" if orig_L in resp else "▫️")
+            mine = " _(your answer)_" if orig_L in resp else ""
+            st.markdown(f"{mark} **{disp_L}.** {text}{mine}")
+        disp_resp = [disp_q["_orig_to_new"][k] for k in resp if k in disp_q["_orig_to_new"]]
+        render_feedback(disp_q, disp_resp)
+        render_explanation(disp_q, expanded=True)
+
+    st.divider()
+    st.button("Retry Final Boss", on_click=reset_boss, width="stretch", key="retry_boss_btn")
+
+
+def boss_stats_view(qs: list[dict], mode: str) -> None:
+    st.subheader("Performance Breakdown")
+    graded = st.session_state.boss_graded
+    if not graded:
+        st.info("No questions graded yet. Check an answer in Practice or submit an Exam to see analytics.")
+        return
+
+    rows = []
+    for w in range(1, 13):
+        w_qs = [q for q in ALL_QUESTIONS if q["week"] == w]
+        done = [q for q in w_qs if q["id"] in graded]
+        corr = sum(graded[q["id"]]["correct"] for q in done)
+        rows.append({
+            "Week": f"W{w}",
+            "Questions": len(w_qs),
+            "Answered": len(done),
+            "Correct": corr,
+            "Score %": (100 * corr / len(done)) if done else None,
+        })
+    df = pd.DataFrame(rows)
+
+    fig = go.Figure()
+    fig.add_bar(x=df["Week"], y=df["Score %"], name="Score %",
+                marker_color=[score_color(v) for v in df["Score %"]],
+                hovertemplate="%{x}: %{y:.0f}%<extra>Score</extra>")
+    fig.update_layout(title="Accuracy by Topic (Weeks 1–12)",
+                      yaxis=dict(range=[0, 105], title="%"),
+                      height=320, margin=dict(t=40, b=10, l=10, r=10))
+    st.plotly_chart(fig, width="stretch")
+
+    st.dataframe(
+        df[["Week", "Questions", "Answered", "Correct", "Score %"]],
+        hide_index=True, width="stretch",
+        column_config={"Score %": st.column_config.ProgressColumn(
+            "Score", min_value=0, max_value=100, format="%.0f%%")},
+    )
+
+
+# --------------------------------------------------------------------------------------
 # Main
 # --------------------------------------------------------------------------------------
 def main() -> None:
@@ -654,60 +1009,109 @@ def main() -> None:
 
     with st.sidebar:
         st.title("🧠 RL Weekly Quiz")
-        year = st.radio("Question set", YEARS, horizontal=True, key="year",
-                        help="Each year's questions, scores and history are kept separate.")
+        mode_label = st.radio(
+            "Mode",
+            ["Practice", "Exam", "Final Boss 💀"],
+            horizontal=False,
+            key="main_mode",
+            help="Practice: instant feedback per question. "
+                 "Exam: answers revealed after you submit. "
+                 "Final Boss 💀: all 219 questions from 2025 & 2026 combined!",
+        )
 
-        # Labels stay static: changing them would give the widget a new identity and drop the
-        # user's selection. Status is shown in the caption below instead. One selector per year.
-        labels = {w: f"Week {w}: {WEEKS[year][w]['title']}" for w in WEEKS[year]}
-        week = st.selectbox("Week", options=list(WEEKS[year]), format_func=labels.get,
-                            key=f"week_{year}")
-        s = week_stats(year, week)
-        icon = week_status_icon(year, week)
-        status = {"⚪": "not started", "🟡": "in progress", "✅": "complete"}[icon]
-        st.caption(f"{icon} {status} ({s['answered']}/{s['total']} answered)")
+        if mode_label == "Final Boss 💀":
+            boss_style_label = st.radio(
+                "Boss Style",
+                ["Practice", "Exam"],
+                horizontal=True,
+                key="boss_style_choice",
+                help="Practice: check as you go. Exam: timed test submitted at the end.",
+            )
+            boss_style = PRACTICE if boss_style_label == "Practice" else EXAM
+            timed = False
+            if boss_style == EXAM:
+                timed = st.toggle(
+                    "Time limit",
+                    value=False,
+                    help=f"{SECONDS_PER_QUESTION} seconds per question (~5.5 hours total).",
+                    disabled=st.session_state.boss_exam["started_at"] is not None,
+                )
 
-        mode_label = st.radio("Mode", ["Practice", "Exam"], horizontal=True,
-                              help="Practice: instant feedback per question. "
-                                   "Exam: answers revealed after you submit.")
-        mode = PRACTICE if mode_label == "Practice" else EXAM
-        timed = True
-        if mode == EXAM:
-            timed = st.toggle("Time limit", value=True,
-                              help=f"{SECONDS_PER_QUESTION} seconds per question.",
-                              disabled=exam_state(year, week)["started_at"] is not None)
-
-        st.divider()
-        done, _ = year_answered(year)
-        st.markdown(f"**{year} progress**")
-        st.progress(done / YEAR_TOTAL[year],
-                    text=f"{done} of {YEAR_TOTAL[year]} questions answered")
-        complete = sum(week_stats(year, w)["answered"] == week_stats(year, w)["total"]
-                       for w in WEEKS[year])
-        st.caption(f"{complete} of {len(WEEKS[year])} weeks complete")
-        for y in YEARS:
-            if y != year:
-                d, _ = year_answered(y)
-                st.caption(f"{y}: {d} of {YEAR_TOTAL[y]} answered")
-
-        st.divider()
-        st.button("Retry this week", on_click=reset_week, args=(year, week), width="stretch")
-        with st.popover(f"Reset all of {year}", width="stretch"):
-            st.write(f"Clear every {year} answer, score and attempt? "
-                     "Other years are not affected.")
-            st.button(f"Yes, reset {year}", type="primary", on_click=reset_year, args=(year,))
-
-    st.title(f"Week {week}: {WEEKS[year][week]['title']}", anchor=False)
-    st.caption(BANKS[year].get("source", ""))
-    tab_quiz, tab_dash = st.tabs(["📝 Quiz", "📊 Results dashboard"])
-    with tab_quiz:
-        render_shuffle_controls(year, week)
-        if mode == PRACTICE:
-            practice_view(year, week)
+            st.divider()
+            st.markdown("**💀 Final Boss Progress**")
+            if boss_style == PRACTICE:
+                n_done = len(st.session_state.boss_checked)
+            else:
+                n_done = sum(bool(response(EXAM, q, is_boss=True)) for q in ALL_QUESTIONS)
+            st.progress(n_done / len(ALL_QUESTIONS), text=f"{n_done} of {len(ALL_QUESTIONS)} answered")
+            st.divider()
+            st.button("Reset Final Boss", on_click=reset_boss, width="stretch")
         else:
-            exam_view(year, week, timed)
-    with tab_dash:
-        dashboard_view(year)
+            year = st.radio("Question set", YEARS, horizontal=True, key="year",
+                            help="Each year's questions, scores and history are kept separate.")
+
+            # Labels stay static: changing them would give the widget a new identity and drop the
+            # user's selection. Status is shown in the caption below instead. One selector per year.
+            labels = {w: f"Week {w}: {WEEKS[year][w]['title']}" for w in WEEKS[year]}
+            week = st.selectbox("Week", options=list(WEEKS[year]), format_func=labels.get,
+                                key=f"week_{year}")
+            s = week_stats(year, week)
+            icon = week_status_icon(year, week)
+            status = {"⚪": "not started", "🟡": "in progress", "✅": "complete"}[icon]
+            st.caption(f"{icon} {status} ({s['answered']}/{s['total']} answered)")
+
+            mode = PRACTICE if mode_label == "Practice" else EXAM
+            timed = True
+            if mode == EXAM:
+                timed = st.toggle("Time limit", value=True,
+                                  help=f"{SECONDS_PER_QUESTION} seconds per question.",
+                                  disabled=exam_state(year, week)["started_at"] is not None)
+
+            st.divider()
+            done, _ = year_answered(year)
+            st.markdown(f"**{year} progress**")
+            st.progress(done / YEAR_TOTAL[year],
+                        text=f"{done} of {YEAR_TOTAL[year]} questions answered")
+            complete = sum(week_stats(year, w)["answered"] == week_stats(year, w)["total"]
+                           for w in WEEKS[year])
+            st.caption(f"{complete} of {len(WEEKS[year])} weeks complete")
+            for y in YEARS:
+                if y != year:
+                    d, _ = year_answered(y)
+                    st.caption(f"{y}: {d} of {YEAR_TOTAL[y]} answered")
+
+            st.divider()
+            st.button("Retry this week", on_click=reset_week, args=(year, week), width="stretch")
+            with st.popover(f"Reset all of {year}", width="stretch"):
+                st.write(f"Clear every {year} answer, score and attempt? "
+                         "Other years are not affected.")
+                st.button(f"Yes, reset {year}", type="primary", on_click=reset_year, args=(year,))
+
+    if mode_label == "Final Boss 💀":
+        st.title("💀 Final Boss: 219 Questions (2025 & 2026)", anchor=False)
+        st.caption("The complete gauntlet covering all 12 weeks of Reinforcement Learning assignments (Prof. B. Ravindran)")
+        tab_boss, tab_stats = st.tabs(["⚔️ Boss Battle", "📊 Boss Stats"])
+        with tab_boss:
+            render_boss_shuffle_controls()
+            qs = get_boss_questions()
+            if boss_style == PRACTICE:
+                boss_practice_view(qs)
+            else:
+                boss_exam_view(qs, timed)
+        with tab_stats:
+            boss_stats_view(get_boss_questions(), boss_style)
+    else:
+        st.title(f"Week {week}: {WEEKS[year][week]['title']}", anchor=False)
+        st.caption(BANKS[year].get("source", ""))
+        tab_quiz, tab_dash = st.tabs(["📝 Quiz", "📊 Results dashboard"])
+        with tab_quiz:
+            render_shuffle_controls(year, week)
+            if mode == PRACTICE:
+                practice_view(year, week)
+            else:
+                exam_view(year, week, timed)
+        with tab_dash:
+            dashboard_view(year)
 
 
 if __name__ == "__main__":
